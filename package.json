@@ -1,0 +1,68 @@
+{
+  "name": "did-pwa-app",
+  "version": "0.1.0",
+  "private": true,
+  "homepage": "https://hanamori-yutaro1214.github.io/DID-PWA-app/",
+  "dependencies": {
+    "@digitalbazaar/did-method-key": "^5.2.0",
+    "@digitalcredentials/did-method-key": "^3.0.0",
+    "@testing-library/jest-dom": "^5.17.0",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/user-event": "^13.5.0",
+    "@transmute/ed25519-key-pair": "^0.7.0-unstable.82",
+    "did-resolver": "^4.1.0",
+    "did-web": "^0.1.0",
+    "ethers": "^6.15.0",
+    "ethr-did-resolver": "^11.0.5",
+    "multiformats": "^13.4.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-router-dom": "^7.7.1",
+    "react-scripts": "5.0.1",
+    "tweetnacl": "^1.0.3",
+    "varint": "^6.0.0",
+    "web-vitals": "^2.1.4",
+    "workbox-background-sync": "^6.6.0",
+    "workbox-broadcast-update": "^6.6.0",
+    "workbox-cacheable-response": "^6.5.4",
+    "workbox-core": "^6.6.0",
+    "workbox-expiration": "^6.6.0",
+    "workbox-google-analytics": "^6.6.1",
+    "workbox-navigation-preload": "^6.6.0",
+    "workbox-precaching": "^6.6.0",
+    "workbox-range-requests": "^6.6.0",
+    "workbox-routing": "^6.6.0",
+    "workbox-strategies": "^6.6.0",
+    "workbox-streams": "^6.6.0",
+    "workbox-window": "^7.3.0"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "gh-pages": "^6.3.0"
+  }
+}
