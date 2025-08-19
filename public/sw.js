@@ -5,23 +5,25 @@ if (workbox) {
   workbox.core.clientsClaim();
   workbox.core.skipWaiting();
 
-  // 事前キャッシュ (アプリの基本ファイル)
+  const PUBLIC_URL = process.env.PUBLIC_URL || '';
+
+  // 事前キャッシュ
   workbox.precaching.precacheAndRoute([
-    { url: '/', revision: null },
-    { url: '/index.html', revision: null },
-    { url: '/offline.html', revision: null }, // 後で追加する
+    { url: `${PUBLIC_URL}/`, revision: null },
+    { url: `${PUBLIC_URL}/index.html`, revision: null },
+    { url: `${PUBLIC_URL}/offline.html`, revision: null }
   ]);
 
-  // HTMLナビゲーションは NetworkFirst、失敗したら offline.html
+  // HTMLナビゲーション: NetworkFirst
   workbox.routing.registerRoute(
     ({ request }) => request.mode === 'navigate',
     async () => {
       try {
         return await new workbox.strategies.NetworkFirst({
           cacheName: 'html-cache',
-        }).handle({ request: new Request('/') });
+        }).handle({ request: new Request(`${PUBLIC_URL}/`) });
       } catch (error) {
-        return caches.match('/offline.html');
+        return caches.match(`${PUBLIC_URL}/offline.html`);
       }
     }
   );
@@ -41,7 +43,7 @@ if (workbox) {
     })
   );
 
-  // API
+  // 外部 API
   workbox.routing.registerRoute(
     ({ url, request }) => request.method === 'GET' && url.origin !== self.location.origin,
     new workbox.strategies.NetworkFirst({ cacheName: 'api-cache' })
