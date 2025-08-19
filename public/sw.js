@@ -5,13 +5,11 @@ if (workbox) {
   workbox.core.clientsClaim();
   workbox.core.skipWaiting();
 
-  const PUBLIC_URL = process.env.PUBLIC_URL || '';
-
-  // 事前キャッシュ
+  // 事前キャッシュ（絶対/相対パスで指定）
   workbox.precaching.precacheAndRoute([
-    { url: `${PUBLIC_URL}/`, revision: null },
-    { url: `${PUBLIC_URL}/index.html`, revision: null },
-    { url: `${PUBLIC_URL}/offline.html`, revision: null }
+    { url: '/DID-PWA-app/', revision: null },
+    { url: '/DID-PWA-app/index.html', revision: null },
+    { url: '/DID-PWA-app/offline.html', revision: null }
   ]);
 
   // HTMLナビゲーション: NetworkFirst
@@ -21,9 +19,9 @@ if (workbox) {
       try {
         return await new workbox.strategies.NetworkFirst({
           cacheName: 'html-cache',
-        }).handle({ request: new Request(`${PUBLIC_URL}/`) });
+        }).handle({ request: new Request('/DID-PWA-app/') });
       } catch (error) {
-        return caches.match(`${PUBLIC_URL}/offline.html`);
+        return caches.match('/DID-PWA-app/offline.html');
       }
     }
   );
