@@ -46,6 +46,7 @@ const IdIssueScreen = () => {
       navigate('/display-id', { state: { issued } });
 
     } catch (e) {
+      // 修正：バッククォートで囲む
       alert(`発行に失敗: ${e.message}`);
     }
   };
@@ -70,7 +71,7 @@ const IdIssueScreen = () => {
         <label>方式: </label>
         <select value={method} onChange={e => setMethod(e.target.value)}>
           <option value="key">did:key (Ed25519)</option>
-          <option value="ethr">did:ethr ({'sepolia'})</option>
+          <option value="ethr">did:ethr (sepolia)</option>
         </select>
       </div>
 
@@ -126,7 +127,7 @@ const IdDisplayScreen = () => {
 
       {issued && <p>発行されたDID: {issued.did}</p>}
 
-      {/* 追加: VC表示ボタン */}
+      {/* VC表示ボタン */}
       <div style={{marginTop: '16px'}}>
         <button onClick={goVcDisplay} style={{padding: '8px 16px', fontSize: '16px'}}>
           VC表示
