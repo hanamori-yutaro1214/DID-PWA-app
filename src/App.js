@@ -7,6 +7,9 @@ import { issueDidKey } from './services/didKey';
 import { issueDidEthr } from './services/didEthr';
 import { universalResolve } from './services/resolver';
 
+// ★ 追加：VCの保存・取得（didKey.jsに実装済みの関数を再利用）
+import { saveVc, getStoredVcs } from './services/didKey';
+
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const IdIssueScreen = () => {
@@ -100,8 +103,9 @@ const IdDisplayScreen = () => {
     }
   };
 
+  // ★ 修正：VC表示へ遷移するときに「今のDID」を渡す
   const goVcDisplay = () => {
-    navigate('/display-vc');
+    navigate('/display-vc', { state: { did } });
   };
 
   return (
@@ -126,7 +130,7 @@ const IdDisplayScreen = () => {
 
       {issued && <p>発行されたDID: {issued.did}</p>}
 
-      {/* 追加: VC表示ボタン */}
+      {/* VC表示ボタン */}
       <div style={{marginTop: '16px'}}>
         <button onClick={goVcDisplay} style={{padding: '8px 16px', fontSize: '16px'}}>
           VC表示
@@ -136,34 +140,93 @@ const IdDisplayScreen = () => {
   );
 };
 
+// ★ 差し替え：VC一覧（カード表示 & ダミー追加ボタン）
 const VcDisplayScreen = () => {
-  const dummyVc = {
-    "@context": [
-      "https://www.w3.org/2018/credentials/v1",
-      "https://www.w3.org/2018/credentials/examples/v1"
-    ],
-    "id": "http://example.edu/credentials/1872",
-    "type": ["VerifiableCredential","UniversityDegreeCredential"],
-    "credentialSubject": {
-      "id":"did:example:ebfeb1f...",
-      "degree":{"type":"BachelorDegree","name":"Bachelor of Science and Arts"}
-    },
-    "issuer": "did:example:76e12e...",
-    "issuanceDate": "2020-03-10T04:24:12Z",
-    "proof": {
-      "type":"Ed25519Signature2018",
-      "created":"2020-03-10T04:24:12Z",
-      "jws":"...",
-      "proofPurpose":"assertionMethod",
-      "verificationMethod":"did:example:76e12e...#key-1"
-    }
+  const location = useLocation();
+  const didFromState = location.state?.did || ''; // 渡ってこなければ空
+
+  const [didFilter, setDidFilter] = React.useState(didFromState);
+  const [vcs, setVcs] = React.useState([]);
+
+  // localStorage から読み込み（必要ならDIDで絞り込み）
+  const load = React.useCallback(() => {
+    const all = getStoredVcs(); // didKey.js の関数
+    const list = didFilter ? all.filter(v => v.holderDid === didFilter) : all;
+    setVcs(list);
+  }, [didFilter]);
+
+  React.useEffect(() => { load(); }, [load]);
+
+  // テスト用：ダミーVCを1件追加保存
+  const addDummyVc = () => {
+    const newVc = {
+      id: 'urn:uuid:' + (crypto?.randomUUID ? crypto.randomUUID() : Date.now()),
+      name: 'デモVC',                                 // カードのタイトル
+      issuer: didFilter || 'did:example:issuerDummy', // カードの発行者
+      holderDid: didFilter || null,                   // どのDIDのVCかを紐づけ
+      issuanceDate: new Date().toISOString()
+    };
+    saveVc(newVc);           // localStorageへ保存
+    setVcs(prev => [...prev, newVc]); // 画面にも即反映
+  };
+
+  // カード用の簡易スタイル（インライン）
+  const card = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '12px',
+    border: '1px solid #e5e7eb',
+    borderRadius: 14,
+    background: '#fff',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+  };
+  const badge = {
+    width: 48, height: 48, borderRadius: 9999,
+    background: '#3b82f6', color: '#fff',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontWeight: 700, fontSize: 16
   };
 
   return (
     <div>
-      <h2>VC表示画面</h2>
-      <p>発行されたVCが表示されます。（まずはダミー）</p>
-      <pre>{JSON.stringify(dummyVc, null, 2)}</pre>
+      <h2>VC一覧画面</h2>
+
+      {/* DIDフィルタ（IdDisplayから渡ってきた場合は初期値セット済み） */}
+      <div style={{marginBottom: 12}}>
+        <label>DIDフィルタ: </label>
+        <input
+          style={{width:'80%'}}
+          placeholder="did:key:...（空なら全件表示）"
+          value={didFilter}
+          onChange={e => setDidFilter(e.target.value)}
+        />
+        <button onClick={load} style={{marginLeft: 8}}>再読込</button>
+      </div>
+
+      <div style={{margin: '12px 0'}}>
+        <button onClick={addDummyVc}>ダミーVCを追加</button>
+      </div>
+
+      {vcs.length === 0 ? (
+        <p>保存されたVCはありません。</p>
+      ) : (
+        <div style={{display:'grid', gap: 12}}>
+          {vcs.map((vc, i) => (
+            <div key={vc.id || i} style={card}>
+              <div style={badge}>VC</div>
+              <div>
+                <div style={{fontSize:16, fontWeight:600}}>
+                  {vc.name || 'Verifiable Credential'}
+                </div>
+                <div style={{fontSize:12, color:'#6b7280'}}>
+                  Issuer: {vc.issuer || '不明'}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
