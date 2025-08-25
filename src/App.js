@@ -110,7 +110,7 @@ const IdDisplayScreen = () => {
 
       {issued && <p>メールアドレス: {issued.email}</p>}
 
-      <p>ここでDID Documentを解決し、表示します。</p>
+      <p>DID Documentを解決し、表示します。</p>
       <input
         value={did}
         onChange={e => setDid(e.target.value)}
