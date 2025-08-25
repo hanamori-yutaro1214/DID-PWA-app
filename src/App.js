@@ -9,14 +9,31 @@ import { universalResolve } from './services/resolver';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// ---- localStorage の保存・取得 ----
-function saveCurrentAccount(account) {
-  localStorage.setItem("currentAccount", JSON.stringify(account));
+// VCの保存・取得関数
+function saveVcsForDid(did, vcs) {
+  const allVcs = JSON.parse(localStorage.getItem("vcsByDid") || "{}");
+  allVcs[did] = vcs;
+  localStorage.setItem("vcsByDid", JSON.stringify(allVcs));
 }
 
-function getCurrentAccount() {
-  const raw = localStorage.getItem("currentAccount");
-  return raw ? JSON.parse(raw) : null;
+function getVcsByDid(did) {
+  const allVcs = JSON.parse(localStorage.getItem("vcsByDid") || "{}");
+  return allVcs[did] || [];
+}
+
+// DID履歴の保存・取得（メールごと）
+function saveDidHistory(email, issued) {
+  const historyByEmail = JSON.parse(localStorage.getItem("didHistoryByEmail") || "{}");
+  if (!historyByEmail[email]) {
+    historyByEmail[email] = [];
+  }
+  historyByEmail[email].push(issued);
+  localStorage.setItem("didHistoryByEmail", JSON.stringify(historyByEmail));
+}
+
+function getDidHistoryByEmail(email) {
+  const historyByEmail = JSON.parse(localStorage.getItem("didHistoryByEmail") || "{}");
+  return historyByEmail[email] || [];
 }
 
 // ダミーVCを生成
@@ -29,7 +46,7 @@ function generateDummyVcs(did, email) {
     vcs.push({
       id: `http://example.edu/credentials/${did}-1`,
       type: ["VerifiableCredential", "EmailCredential"],
-      credentialSubject: { id: did, email },
+      credentialSubject: { id: did, email: email },
       issuer: did,
       issuanceDate: "2023-01-01T00:00:00Z",
     });
@@ -55,7 +72,6 @@ function generateDummyVcs(did, email) {
   return vcs;
 }
 
-// ------------------ ID発行画面 ------------------
 const IdIssueScreen = () => {
   const [method, setMethod] = React.useState('key');
   const [email, setEmail] = React.useState('');
@@ -86,14 +102,16 @@ const IdIssueScreen = () => {
       } else {
         data = issueDidEthr();
       }
-      const did = data.did;
+      const issued = { ...data, email };
 
-      const vcs = generateDummyVcs(did, email);
+      // VC保存
+      const dummyVcs = generateDummyVcs(issued.did, email);
+      saveVcsForDid(issued.did, dummyVcs);
 
-      const account = { email, did, vcs };
-      saveCurrentAccount(account);
+      // DID履歴保存（メールごと）
+      saveDidHistory(email, issued);
 
-      navigate('/display-id', { state: { account } });
+      navigate('/display-id', { state: { issued } });
     } catch (e) {
       alert(`発行に失敗: ${e.message}`);
     }
@@ -127,14 +145,20 @@ const IdIssueScreen = () => {
   );
 };
 
-// ------------------ ID表示画面 ------------------
 const IdDisplayScreen = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const account = location.state?.account || getCurrentAccount();
-  const [did, setDid] = React.useState(account?.did || '');
+  const issued = location.state?.issued;
+  const [did, setDid] = React.useState(issued?.did || '');
   const [doc, setDoc] = React.useState(null);
   const [err, setErr] = React.useState(null);
+  const [history, setHistory] = React.useState([]);
+
+  React.useEffect(() => {
+    if (issued?.email) {
+      setHistory(getDidHistoryByEmail(issued.email));
+    }
+  }, [issued]);
 
   const handleResolve = async () => {
     try {
@@ -148,19 +172,13 @@ const IdDisplayScreen = () => {
   };
 
   const goVcDisplay = () => {
-    navigate('/display-vc', { state: { account } });
+    navigate('/display-vc', { state: { did } });
   };
-
-  if (!account) {
-    return <p>アカウントが存在しません。まずIDを発行してください。</p>;
-  }
 
   return (
     <div>
       <h2>ID表示画面</h2>
-      <p>メールアドレス: {account.email}</p>
-      <p>発行されたDID: {account.did}</p>
-
+      {issued && <p>メールアドレス: {issued.email}</p>}
       <p>DID Documentを解決し、表示します。</p>
       <input
         value={did}
@@ -173,6 +191,16 @@ const IdDisplayScreen = () => {
       </div>
       {doc && <pre>{JSON.stringify(doc, null, 2)}</pre>}
       {err && <p style={{ color: 'red' }}>エラー: {err}</p>}
+      {issued && <p>発行されたDID: {issued.did}</p>}
+
+      <h3>これまでに発行されたDID一覧（同じメールアドレスのみ）</h3>
+      <ul>
+        {history.map((item, idx) => (
+          <li key={idx}>
+            {item.did}
+          </li>
+        ))}
+      </ul>
 
       <div style={{ marginTop: '16px' }}>
         <button onClick={goVcDisplay}>VC表示</button>
@@ -181,21 +209,22 @@ const IdDisplayScreen = () => {
   );
 };
 
-// ------------------ VC表示画面 ------------------
 const VcDisplayScreen = () => {
   const location = useLocation();
-  const account = location.state?.account || getCurrentAccount();
+  const did = location.state?.did || "did:example:default";
+  const [vcs, setVcs] = React.useState([]);
 
-  if (!account) {
-    return <p>アカウントが存在しません。まずIDを発行してください。</p>;
-  }
+  React.useEffect(() => {
+    const vcsForDid = getVcsByDid(did);
+    setVcs(vcsForDid);
+  }, [did]);
 
   return (
     <div>
       <h2>VC表示画面</h2>
-      <p>{account.did} に紐づくVCを複数表示します。</p>
-      {account.vcs.length === 0 && <p>VCは存在しません。</p>}
-      {account.vcs.map((vc, idx) => (
+      <p>{did} に紐づくVCを複数表示します。</p>
+      {vcs.length === 0 && <p>VCは存在しません。</p>}
+      {vcs.map((vc, idx) => (
         <div key={idx} style={{ border: '1px solid #ccc', padding: '8px', marginBottom: '12px' }}>
           <pre>{JSON.stringify(vc, null, 2)}</pre>
         </div>
@@ -204,15 +233,14 @@ const VcDisplayScreen = () => {
   );
 };
 
-// ------------------ ルーティング ------------------
 export default function App() {
   return (
     <Router>
-      <div className="App" style={{ maxWidth: "800px", margin: "0 auto", padding: "16px" }}>
+      <div className="App">
         <header className="App-header">
           <h1>DID PWA アプリ</h1>
           <nav>
-            <ul style={{ display: "flex", gap: "16px", listStyle: "none", padding: 0 }}>
+            <ul>
               <li><Link to="/">ID発行</Link></li>
               <li><Link to="/display-id">ID表示</Link></li>
               <li><Link to="/display-vc">VC表示</Link></li>
