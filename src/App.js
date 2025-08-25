@@ -105,26 +105,24 @@ const IdIssueScreen = () => {
     <div>
       <h2>ID発行画面</h2>
 
-      {/* メールアドレス入力 */}
-      <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <label style={{ whiteSpace: 'nowrap' }}>メールアドレス:</label>
+      <div style={{ marginBottom: 12 }}>
+        <label>メールアドレス: </label>
         <input
           type="email"
           value={email}
           onChange={handleEmailChange}
           placeholder="example@domain.com"
-          style={{ flex: 1, maxWidth: '300px', boxSizing: 'border-box' }}
+          style={{ width: '100%', maxWidth: '300px' }}
         />
+        {error && <p style={{ color: 'red', margin: '4px 0 0 0' }}>{error}</p>}
       </div>
-      {error && <p style={{ color: 'red', margin: '4px 0 12px 0' }}>{error}</p>}
 
-      {/* DID方式選択 */}
-      <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <label style={{ whiteSpace: 'nowrap' }}>方式:</label>
+      <div style={{ marginBottom: 12 }}>
+        <label>方式: </label>
         <select
           value={method}
           onChange={e => setMethod(e.target.value)}
-          style={{ flex: 1, maxWidth: '250px', boxSizing: 'border-box' }}
+          style={{ width: '100%', maxWidth: '250px' }}
         >
           <option value="key">did:key (Ed25519)</option>
           <option value="ethr">did:ethr (sepolia)</option>
@@ -162,7 +160,7 @@ const IdDisplayScreen = () => {
   };
 
   return (
-    <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
+    <div>
       <h2>ID表示画面</h2>
 
       {issued && <p>メールアドレス: {issued.email}</p>}
@@ -172,9 +170,9 @@ const IdDisplayScreen = () => {
         value={did}
         onChange={e => setDid(e.target.value)}
         placeholder="did:key:... もしくは did:ethr:..."
-        style={{ width: '100%', maxWidth: '400px', boxSizing: 'border-box' }} // ←修正前のように適度なサイズ
+        style={{ width: '100%', maxWidth: '100%', wordWrap: 'break-word' }}
       />
-      <div style={{ marginTop: '8px' }}>
+      <div>
         <button onClick={handleResolve}>DIDのドキュメントを表示</button>
       </div>
 
@@ -220,7 +218,7 @@ const VcDisplayScreen = () => {
   }, [did]);
 
   return (
-    <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
+    <div>
       <h2>VC表示画面</h2>
       <p style={{ wordWrap: 'break-word' }}>{did} に紐づくVCを複数表示します。</p>
 
@@ -234,8 +232,7 @@ const VcDisplayScreen = () => {
             padding: '8px',
             marginBottom: '12px',
             wordWrap: 'break-word',
-            overflowX: 'auto',
-            maxWidth: '100%'
+            overflowX: 'auto'
           }}
         >
           <pre style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}>
@@ -250,7 +247,7 @@ const VcDisplayScreen = () => {
 export default function App() {
   return (
     <Router>
-      <div className="App" style={{ padding: '16px', maxWidth: '900px', margin: '0 auto', overflowX: 'hidden' }}>
+      <div className="App" style={{ padding: '8px', maxWidth: '100%' }}>
         <header className="App-header">
           <h1>DID PWA アプリ</h1>
           <nav>
@@ -261,7 +258,7 @@ export default function App() {
             </ul>
           </nav>
         </header>
-        <main style={{ width: '100%' }}>
+        <main style={{ width: '100%', overflowX: 'hidden' }}>
           <Routes>
             <Route path="/" element={<IdIssueScreen />} />
             <Route path="/display-id" element={<IdDisplayScreen />} />
