@@ -12,7 +12,7 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // VCの保存・取得関数
 function saveVcsForDid(did, vcs) {
   const allVcs = JSON.parse(localStorage.getItem("vcsByDid") || "{}");
-  allVcs[did] = vcs; // DIDごとに上書きまたは新規追加
+  allVcs[did] = vcs;
   localStorage.setItem("vcsByDid", JSON.stringify(allVcs));
 }
 
@@ -22,7 +22,8 @@ function getVcsByDid(did) {
 }
 
 // ダミーVCを生成（DIDごとに個数・内容が変わる）
-function generateDummyVcs(did) {
+// email を引数に追加
+function generateDummyVcs(did, email) {
   const lastChar = did.slice(-1);
   const numVcs = parseInt(lastChar, 36) % 3 + 1; // 1~3個
   const vcs = [];
@@ -31,7 +32,7 @@ function generateDummyVcs(did) {
     vcs.push({
       id: `http://example.edu/credentials/${did}-1`,
       type: ["VerifiableCredential", "EmailCredential"],
-      credentialSubject: { id: did, email: `user_${did}@example.com` },
+      credentialSubject: { id: did, email: email },
       issuer: did,
       issuanceDate: "2023-01-01T00:00:00Z",
     });
@@ -94,7 +95,7 @@ const IdIssueScreen = () => {
       const issued = { ...data, email };
 
       // DIDに紐づくVCを生成して保存
-      const dummyVcs = generateDummyVcs(issued.did);
+      const dummyVcs = generateDummyVcs(issued.did, email);
       saveVcsForDid(issued.did, dummyVcs);
 
       navigate('/display-id', { state: { issued } });
@@ -193,7 +194,6 @@ const VcDisplayScreen = () => {
   const location = useLocation();
   const did = location.state?.did || "did:example:default";
 
-  // DIDごとにVCを取得
   const [vcs, setVcs] = React.useState([]);
 
   React.useEffect(() => {
