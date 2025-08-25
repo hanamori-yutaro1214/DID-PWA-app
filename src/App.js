@@ -108,7 +108,7 @@ const IdDisplayScreen = () => {
     <div>
       <h2>ID表示画面</h2>
 
-      {issued && <p>発行されたメールアドレス: {issued.email}</p>}
+      {issued && <p>メールアドレス: {issued.email}</p>}
 
       <p>ここでDID Documentを解決し、表示します。</p>
       <input
@@ -118,7 +118,7 @@ const IdDisplayScreen = () => {
         style={{width:'80%'}}
       />
       <div>
-        <button onClick={handleResolve}>DIDドキュメントを表示</button>
+        <button onClick={handleResolve}>DIDのドキュメントを表示</button>
       </div>
 
       {doc && <pre>{JSON.stringify(doc, null, 2)}</pre>}
