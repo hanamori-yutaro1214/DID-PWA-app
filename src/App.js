@@ -105,24 +105,26 @@ const IdIssueScreen = () => {
     <div>
       <h2>ID発行画面</h2>
 
-      <div style={{ marginBottom: 12 }}>
-        <label>メールアドレス: </label>
+      {/* メールアドレス入力 */}
+      <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <label style={{ whiteSpace: 'nowrap' }}>メールアドレス:</label>
         <input
           type="email"
           value={email}
           onChange={handleEmailChange}
           placeholder="example@domain.com"
-          style={{ width: '100%', maxWidth: '300px', boxSizing: 'border-box' }}
+          style={{ flex: 1, maxWidth: '300px', boxSizing: 'border-box' }}
         />
-        {error && <p style={{ color: 'red', margin: '4px 0 0 0' }}>{error}</p>}
       </div>
+      {error && <p style={{ color: 'red', margin: '4px 0 12px 0' }}>{error}</p>}
 
-      <div style={{ marginBottom: 12 }}>
-        <label>方式: </label>
+      {/* DID方式選択 */}
+      <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <label style={{ whiteSpace: 'nowrap' }}>方式:</label>
         <select
           value={method}
           onChange={e => setMethod(e.target.value)}
-          style={{ width: '100%', maxWidth: '250px', boxSizing: 'border-box' }}
+          style={{ flex: 1, maxWidth: '250px', boxSizing: 'border-box' }}
         >
           <option value="key">did:key (Ed25519)</option>
           <option value="ethr">did:ethr (sepolia)</option>
@@ -170,9 +172,9 @@ const IdDisplayScreen = () => {
         value={did}
         onChange={e => setDid(e.target.value)}
         placeholder="did:key:... もしくは did:ethr:..."
-        style={{ width: '100%', maxWidth: '100%', wordWrap: 'break-word', boxSizing: 'border-box' }}
+        style={{ width: '100%', maxWidth: '400px', boxSizing: 'border-box' }} // ←修正前のように適度なサイズ
       />
-      <div>
+      <div style={{ marginTop: '8px' }}>
         <button onClick={handleResolve}>DIDのドキュメントを表示</button>
       </div>
 
@@ -248,7 +250,7 @@ const VcDisplayScreen = () => {
 export default function App() {
   return (
     <Router>
-      <div className="App" style={{ padding: '8px', maxWidth: '100vw', margin: 0, overflowX: 'hidden' }}>
+      <div className="App" style={{ padding: '16px', maxWidth: '900px', margin: '0 auto', overflowX: 'hidden' }}>
         <header className="App-header">
           <h1>DID PWA アプリ</h1>
           <nav>
@@ -259,7 +261,7 @@ export default function App() {
             </ul>
           </nav>
         </header>
-        <main style={{ width: '100%', overflowX: 'hidden' }}>
+        <main style={{ width: '100%' }}>
           <Routes>
             <Route path="/" element={<IdIssueScreen />} />
             <Route path="/display-id" element={<IdDisplayScreen />} />
