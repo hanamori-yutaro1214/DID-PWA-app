@@ -72,6 +72,7 @@ function generateDummyVcs(did, email) {
   return vcs;
 }
 
+// ------------------ ID発行画面 ------------------
 const IdIssueScreen = () => {
   const [method, setMethod] = React.useState('key');
   const [email, setEmail] = React.useState('');
@@ -145,6 +146,7 @@ const IdIssueScreen = () => {
   );
 };
 
+// ------------------ ID表示画面 ------------------
 const IdDisplayScreen = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -172,7 +174,7 @@ const IdDisplayScreen = () => {
   };
 
   const goVcDisplay = () => {
-    navigate('/display-vc', { state: { did } });
+    navigate('/display-vc', { state: { email: issued.email } });
   };
 
   return (
@@ -209,30 +211,48 @@ const IdDisplayScreen = () => {
   );
 };
 
+// ------------------ VC表示画面 ------------------
 const VcDisplayScreen = () => {
   const location = useLocation();
-  const did = location.state?.did || "did:example:default";
-  const [vcs, setVcs] = React.useState([]);
+  const email = location.state?.email;
+  const [allVcs, setAllVcs] = React.useState([]);
 
   React.useEffect(() => {
-    const vcsForDid = getVcsByDid(did);
-    setVcs(vcsForDid);
-  }, [did]);
+    if (!email) return;
+
+    const history = getDidHistoryByEmail(email);
+    const aggregated = [];
+
+    history.forEach(item => {
+      const vcs = getVcsByDid(item.did);
+      vcs.forEach(vc => {
+        aggregated.push({ did: item.did, vc });
+      });
+    });
+
+    setAllVcs(aggregated);
+  }, [email]);
+
+  if (!email) {
+    return <p>対象のメールアドレスが指定されていません。</p>;
+  }
 
   return (
     <div>
       <h2>VC表示画面</h2>
-      <p>{did} に紐づくVCを複数表示します。</p>
-      {vcs.length === 0 && <p>VCは存在しません。</p>}
-      {vcs.map((vc, idx) => (
+      <p>{email} に紐づくすべてのDIDのVCを表示します。</p>
+      {allVcs.length === 0 && <p>VCは存在しません。</p>}
+      {allVcs.map((item, idx) => (
         <div key={idx} style={{ border: '1px solid #ccc', padding: '8px', marginBottom: '12px' }}>
-          <pre>{JSON.stringify(vc, null, 2)}</pre>
+          <p><strong>DID: {item.did}</strong></p>
+          <pre>{JSON.stringify(item.vc, null, 2)}</pre>
         </div>
       ))}
     </div>
   );
 };
 
+// ------------------ ルーティング ------------------
 export default function App() {
   return (
     <Router>
