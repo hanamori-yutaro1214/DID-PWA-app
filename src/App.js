@@ -128,7 +128,7 @@ const IdIssueScreen = () => {
           value={email}
           onChange={handleEmailChange}
           placeholder="example@domain.com"
-          style={{ width: '235px' }}
+          style={{ width: '238px' }}
         />
         {error && <p style={{ color: 'red' }}>{error}</p>}
       </div>
@@ -174,7 +174,7 @@ const IdDisplayScreen = () => {
   };
 
   const goVcDisplay = () => {
-    navigate('/display-vc', { state: { email: issued.email } });
+    navigate('/display-vc', { state: { email: issued.email, inputDid: did } });
   };
 
   return (
@@ -198,9 +198,7 @@ const IdDisplayScreen = () => {
       <h3>これまでに発行されたDID一覧（同じメールアドレスのみ）</h3>
       <ul>
         {history.map((item, idx) => (
-          <li key={idx}>
-            {item.did}
-          </li>
+          <li key={idx}>{item.did}</li>
         ))}
       </ul>
 
@@ -215,23 +213,32 @@ const IdDisplayScreen = () => {
 const VcDisplayScreen = () => {
   const location = useLocation();
   const email = location.state?.email;
+  const inputDid = location.state?.inputDid;
   const [allVcs, setAllVcs] = React.useState([]);
 
   React.useEffect(() => {
     if (!email) return;
 
-    const history = getDidHistoryByEmail(email);
     const aggregated = [];
 
+    // 入力された DID の VC
+    if (inputDid) {
+      const vcsForInput = getVcsByDid(inputDid);
+      vcsForInput.forEach(vc => aggregated.push({ did: inputDid, vc }));
+    }
+
+    // メールアドレスに紐づく履歴 DID の VC
+    const history = getDidHistoryByEmail(email);
     history.forEach(item => {
-      const vcs = getVcsByDid(item.did);
-      vcs.forEach(vc => {
-        aggregated.push({ did: item.did, vc });
-      });
+      // 入力 DID と同じものは二重追加しない
+      if (item.did !== inputDid) {
+        const vcs = getVcsByDid(item.did);
+        vcs.forEach(vc => aggregated.push({ did: item.did, vc }));
+      }
     });
 
     setAllVcs(aggregated);
-  }, [email]);
+  }, [email, inputDid]);
 
   if (!email) {
     return <p>対象のメールアドレスが指定されていません。</p>;
