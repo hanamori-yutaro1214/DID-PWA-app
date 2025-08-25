@@ -21,7 +21,18 @@ function getVcsByDid(did) {
   return allVcs[did] || [];
 }
 
-// ダミーVCを生成（DIDごとに個数・内容が変わる）
+// DID履歴の保存・取得
+function saveDidHistory(issued) {
+  const history = JSON.parse(localStorage.getItem("didHistory") || "[]");
+  history.push(issued);
+  localStorage.setItem("didHistory", JSON.stringify(history));
+}
+
+function getDidHistory() {
+  return JSON.parse(localStorage.getItem("didHistory") || "[]");
+}
+
+// ダミーVCを生成
 function generateDummyVcs(did, email) {
   const lastChar = did.slice(-1);
   const numVcs = parseInt(lastChar, 36) % 3 + 1; // 1~3個
@@ -58,7 +69,7 @@ function generateDummyVcs(did, email) {
 }
 
 const IdIssueScreen = () => {
-  const [method, setMethod] = React.useState('key'); // 'key' | 'ethr'
+  const [method, setMethod] = React.useState('key');
   const [email, setEmail] = React.useState('');
   const [error, setError] = React.useState('');
   const navigate = useNavigate();
@@ -89,9 +100,12 @@ const IdIssueScreen = () => {
       }
       const issued = { ...data, email };
 
-      // DIDに紐づくVCを生成して保存
+      // VC保存
       const dummyVcs = generateDummyVcs(issued.did, email);
       saveVcsForDid(issued.did, dummyVcs);
+
+      // DID履歴保存
+      saveDidHistory(issued);
 
       navigate('/display-id', { state: { issued } });
     } catch (e) {
@@ -109,9 +123,9 @@ const IdIssueScreen = () => {
           value={email}
           onChange={handleEmailChange}
           placeholder="example@domain.com"
-          style={{ width: '230px' }}
+          style={{ width: '235px' }}
         />
-        {error && <p style={{ color: 'red', margin: '4px 0 0 0' }}>{error}</p>}
+        {error && <p style={{ color: 'red' }}>{error}</p>}
       </div>
       <div style={{ marginBottom: 12 }}>
         <label>方式: </label>
@@ -134,6 +148,11 @@ const IdDisplayScreen = () => {
   const [did, setDid] = React.useState(issued?.did || '');
   const [doc, setDoc] = React.useState(null);
   const [err, setErr] = React.useState(null);
+  const [history, setHistory] = React.useState([]);
+
+  React.useEffect(() => {
+    setHistory(getDidHistory());
+  }, []);
 
   const handleResolve = async () => {
     try {
@@ -159,7 +178,7 @@ const IdDisplayScreen = () => {
         value={did}
         onChange={e => setDid(e.target.value)}
         placeholder="did:key:... もしくは did:ethr:..."
-        style={{ width: '40%' }}
+        style={{ width: '60%' }}
       />
       <div>
         <button onClick={handleResolve}>DIDのドキュメントを表示</button>
@@ -167,10 +186,18 @@ const IdDisplayScreen = () => {
       {doc && <pre>{JSON.stringify(doc, null, 2)}</pre>}
       {err && <p style={{ color: 'red' }}>エラー: {err}</p>}
       {issued && <p>発行されたDID: {issued.did}</p>}
+
+      <h3>これまでに発行されたDID一覧</h3>
+      <ul>
+        {history.map((item, idx) => (
+          <li key={idx}>
+            {item.did} （{item.email}）
+          </li>
+        ))}
+      </ul>
+
       <div style={{ marginTop: '16px' }}>
-        <button onClick={goVcDisplay} style={{ padding: '8px 16px', fontSize: '16px' }}>
-          VC表示
-        </button>
+        <button onClick={goVcDisplay}>VC表示</button>
       </div>
     </div>
   );
