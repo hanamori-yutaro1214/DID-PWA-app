@@ -21,15 +21,19 @@ function getVcsByDid(did) {
   return allVcs[did] || [];
 }
 
-// DID履歴の保存・取得
-function saveDidHistory(issued) {
-  const history = JSON.parse(localStorage.getItem("didHistory") || "[]");
-  history.push(issued);
-  localStorage.setItem("didHistory", JSON.stringify(history));
+// DID履歴の保存・取得（メールごと）
+function saveDidHistory(email, issued) {
+  const historyByEmail = JSON.parse(localStorage.getItem("didHistoryByEmail") || "{}");
+  if (!historyByEmail[email]) {
+    historyByEmail[email] = [];
+  }
+  historyByEmail[email].push(issued);
+  localStorage.setItem("didHistoryByEmail", JSON.stringify(historyByEmail));
 }
 
-function getDidHistory() {
-  return JSON.parse(localStorage.getItem("didHistory") || "[]");
+function getDidHistoryByEmail(email) {
+  const historyByEmail = JSON.parse(localStorage.getItem("didHistoryByEmail") || "{}");
+  return historyByEmail[email] || [];
 }
 
 // ダミーVCを生成
@@ -104,8 +108,8 @@ const IdIssueScreen = () => {
       const dummyVcs = generateDummyVcs(issued.did, email);
       saveVcsForDid(issued.did, dummyVcs);
 
-      // DID履歴保存
-      saveDidHistory(issued);
+      // DID履歴保存（メールごと）
+      saveDidHistory(email, issued);
 
       navigate('/display-id', { state: { issued } });
     } catch (e) {
@@ -151,8 +155,10 @@ const IdDisplayScreen = () => {
   const [history, setHistory] = React.useState([]);
 
   React.useEffect(() => {
-    setHistory(getDidHistory());
-  }, []);
+    if (issued?.email) {
+      setHistory(getDidHistoryByEmail(issued.email));
+    }
+  }, [issued]);
 
   const handleResolve = async () => {
     try {
@@ -187,11 +193,11 @@ const IdDisplayScreen = () => {
       {err && <p style={{ color: 'red' }}>エラー: {err}</p>}
       {issued && <p>発行されたDID: {issued.did}</p>}
 
-      <h3>これまでに発行されたDID一覧</h3>
+      <h3>これまでに発行されたDID一覧（同じメールアドレスのみ）</h3>
       <ul>
         {history.map((item, idx) => (
           <li key={idx}>
-            {item.did} （{item.email}）
+            {item.did}
           </li>
         ))}
       </ul>
