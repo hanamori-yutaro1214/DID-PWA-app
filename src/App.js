@@ -112,7 +112,7 @@ const IdIssueScreen = () => {
           value={email}
           onChange={handleEmailChange}
           placeholder="example@domain.com"
-          style={{ width: '100%', maxWidth: '300px' }}
+          style={{ width: '100%', maxWidth: '300px', boxSizing: 'border-box' }}
         />
         {error && <p style={{ color: 'red', margin: '4px 0 0 0' }}>{error}</p>}
       </div>
@@ -122,7 +122,7 @@ const IdIssueScreen = () => {
         <select
           value={method}
           onChange={e => setMethod(e.target.value)}
-          style={{ width: '100%', maxWidth: '250px' }}
+          style={{ width: '100%', maxWidth: '250px', boxSizing: 'border-box' }}
         >
           <option value="key">did:key (Ed25519)</option>
           <option value="ethr">did:ethr (sepolia)</option>
@@ -160,7 +160,7 @@ const IdDisplayScreen = () => {
   };
 
   return (
-    <div>
+    <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
       <h2>ID表示画面</h2>
 
       {issued && <p>メールアドレス: {issued.email}</p>}
@@ -170,7 +170,7 @@ const IdDisplayScreen = () => {
         value={did}
         onChange={e => setDid(e.target.value)}
         placeholder="did:key:... もしくは did:ethr:..."
-        style={{ width: '100%', maxWidth: '100%', wordWrap: 'break-word' }}
+        style={{ width: '100%', maxWidth: '100%', wordWrap: 'break-word', boxSizing: 'border-box' }}
       />
       <div>
         <button onClick={handleResolve}>DIDのドキュメントを表示</button>
@@ -218,7 +218,7 @@ const VcDisplayScreen = () => {
   }, [did]);
 
   return (
-    <div>
+    <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
       <h2>VC表示画面</h2>
       <p style={{ wordWrap: 'break-word' }}>{did} に紐づくVCを複数表示します。</p>
 
@@ -232,7 +232,8 @@ const VcDisplayScreen = () => {
             padding: '8px',
             marginBottom: '12px',
             wordWrap: 'break-word',
-            overflowX: 'auto'
+            overflowX: 'auto',
+            maxWidth: '100%'
           }}
         >
           <pre style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}>
@@ -247,7 +248,7 @@ const VcDisplayScreen = () => {
 export default function App() {
   return (
     <Router>
-      <div className="App" style={{ padding: '8px', maxWidth: '100%' }}>
+      <div className="App" style={{ padding: '8px', maxWidth: '100vw', margin: 0, overflowX: 'hidden' }}>
         <header className="App-header">
           <h1>DID PWA アプリ</h1>
           <nav>
