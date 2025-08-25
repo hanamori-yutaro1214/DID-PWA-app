@@ -54,12 +54,11 @@ function generateDummyVcs(did, email) {
       issuanceDate: "2023-03-01T00:00:00Z",
     });
   }
-
   return vcs;
 }
 
 const IdIssueScreen = () => {
-  const [method, setMethod] = React.useState('key');
+  const [method, setMethod] = React.useState('key'); // 'key' | 'ethr'
   const [email, setEmail] = React.useState('');
   const [error, setError] = React.useState('');
   const navigate = useNavigate();
@@ -67,7 +66,6 @@ const IdIssueScreen = () => {
   const handleEmailChange = (e) => {
     const val = e.target.value;
     setEmail(val);
-
     if (!val) {
       setError('メールアドレスを入力してください');
     } else if (!emailRegex.test(val)) {
@@ -82,7 +80,6 @@ const IdIssueScreen = () => {
       alert('正しいメールアドレスを入力してください');
       return;
     }
-
     try {
       let data;
       if (method === 'key') {
@@ -90,8 +87,9 @@ const IdIssueScreen = () => {
       } else {
         data = issueDidEthr();
       }
-
       const issued = { ...data, email };
+
+      // DIDに紐づくVCを生成して保存
       const dummyVcs = generateDummyVcs(issued.did, email);
       saveVcsForDid(issued.did, dummyVcs);
 
@@ -104,7 +102,6 @@ const IdIssueScreen = () => {
   return (
     <div>
       <h2>ID発行画面</h2>
-
       <div style={{ marginBottom: 12 }}>
         <label>メールアドレス: </label>
         <input
@@ -112,23 +109,17 @@ const IdIssueScreen = () => {
           value={email}
           onChange={handleEmailChange}
           placeholder="example@domain.com"
-          style={{ width: '100%', maxWidth: '300px' }}
+          style={{ width: '250px' }}
         />
         {error && <p style={{ color: 'red', margin: '4px 0 0 0' }}>{error}</p>}
       </div>
-
       <div style={{ marginBottom: 12 }}>
         <label>方式: </label>
-        <select
-          value={method}
-          onChange={e => setMethod(e.target.value)}
-          style={{ width: '100%', maxWidth: '250px' }}
-        >
+        <select value={method} onChange={e => setMethod(e.target.value)}>
           <option value="key">did:key (Ed25519)</option>
           <option value="ethr">did:ethr (sepolia)</option>
         </select>
       </div>
-
       <button onClick={handleIssue} disabled={!!error || !email}>
         DIDを発行する
       </button>
@@ -162,42 +153,20 @@ const IdDisplayScreen = () => {
   return (
     <div>
       <h2>ID表示画面</h2>
-
       {issued && <p>メールアドレス: {issued.email}</p>}
-
       <p>DID Documentを解決し、表示します。</p>
       <input
         value={did}
         onChange={e => setDid(e.target.value)}
         placeholder="did:key:... もしくは did:ethr:..."
-        style={{ width: '100%', maxWidth: '100%', wordWrap: 'break-word' }}
+        style={{ width: '80%' }}
       />
       <div>
         <button onClick={handleResolve}>DIDのドキュメントを表示</button>
       </div>
-
-      {doc && (
-        <pre style={{
-          whiteSpace: 'pre-wrap',
-          wordWrap: 'break-word',
-          overflowX: 'auto',
-          maxWidth: '100%'
-        }}>
-          {JSON.stringify(doc, null, 2)}
-        </pre>
-      )}
+      {doc && <pre>{JSON.stringify(doc, null, 2)}</pre>}
       {err && <p style={{ color: 'red' }}>エラー: {err}</p>}
-
-      {issued && (
-        <p style={{
-          wordWrap: 'break-word',
-          overflowWrap: 'break-word',
-          maxWidth: '100%'
-        }}>
-          発行されたDID: {issued.did}
-        </p>
-      )}
-
+      {issued && <p>発行されたDID: {issued.did}</p>}
       <div style={{ marginTop: '16px' }}>
         <button onClick={goVcDisplay} style={{ padding: '8px 16px', fontSize: '16px' }}>
           VC表示
@@ -220,24 +189,11 @@ const VcDisplayScreen = () => {
   return (
     <div>
       <h2>VC表示画面</h2>
-      <p style={{ wordWrap: 'break-word' }}>{did} に紐づくVCを複数表示します。</p>
-
+      <p>{did} に紐づくVCを複数表示します。</p>
       {vcs.length === 0 && <p>VCは存在しません。</p>}
-
       {vcs.map((vc, idx) => (
-        <div
-          key={idx}
-          style={{
-            border: '1px solid #ccc',
-            padding: '8px',
-            marginBottom: '12px',
-            wordWrap: 'break-word',
-            overflowX: 'auto'
-          }}
-        >
-          <pre style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}>
-            {JSON.stringify(vc, null, 2)}
-          </pre>
+        <div key={idx} style={{ border: '1px solid #ccc', padding: '8px', marginBottom: '12px' }}>
+          <pre>{JSON.stringify(vc, null, 2)}</pre>
         </div>
       ))}
     </div>
@@ -247,18 +203,18 @@ const VcDisplayScreen = () => {
 export default function App() {
   return (
     <Router>
-      <div className="App" style={{ padding: '8px', maxWidth: '100%' }}>
+      <div className="App">
         <header className="App-header">
           <h1>DID PWA アプリ</h1>
           <nav>
-            <ul style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', padding: 0, listStyle: 'none' }}>
+            <ul>
               <li><Link to="/">ID発行</Link></li>
               <li><Link to="/display-id">ID表示</Link></li>
               <li><Link to="/display-vc">VC表示</Link></li>
             </ul>
           </nav>
         </header>
-        <main style={{ width: '100%', overflowX: 'hidden' }}>
+        <main>
           <Routes>
             <Route path="/" element={<IdIssueScreen />} />
             <Route path="/display-id" element={<IdDisplayScreen />} />
