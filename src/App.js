@@ -46,7 +46,6 @@ const IdIssueScreen = () => {
       navigate('/display-id', { state: { issued } });
 
     } catch (e) {
-      // 修正：バッククォートで囲む
       alert(`発行に失敗: ${e.message}`);
     }
   };
@@ -102,7 +101,7 @@ const IdDisplayScreen = () => {
   };
 
   const goVcDisplay = () => {
-    navigate('/display-vc');
+    navigate('/display-vc', { state: { did } }); // ← DID を渡す
   };
 
   return (
@@ -138,33 +137,44 @@ const IdDisplayScreen = () => {
 };
 
 const VcDisplayScreen = () => {
-  const dummyVc = {
-    "@context": [
-      "https://www.w3.org/2018/credentials/v1",
-      "https://www.w3.org/2018/credentials/examples/v1"
-    ],
-    "id": "http://example.edu/credentials/1872",
-    "type": ["VerifiableCredential","UniversityDegreeCredential"],
-    "credentialSubject": {
-      "id":"did:example:ebfeb1f...",
-      "degree":{"type":"BachelorDegree","name":"Bachelor of Science and Arts"}
+  const location = useLocation();
+  const did = location.state?.did || "did:example:default";
+
+  // 複数ダミーVCを生成
+  const dummyVcs = [
+    {
+      id: "http://example.edu/credentials/1",
+      type: ["VerifiableCredential","EmailCredential"],
+      credentialSubject: { id: did, email: "user@example.com" },
+      issuer: did,
+      issuanceDate: "2023-01-01T00:00:00Z"
     },
-    "issuer": "did:example:76e12e...",
-    "issuanceDate": "2020-03-10T04:24:12Z",
-    "proof": {
-      "type":"Ed25519Signature2018",
-      "created":"2020-03-10T04:24:12Z",
-      "jws":"...",
-      "proofPurpose":"assertionMethod",
-      "verificationMethod":"did:example:76e12e...#key-1"
+    {
+      id: "http://example.edu/credentials/2",
+      type: ["VerifiableCredential","ProfileCredential"],
+      credentialSubject: { id: did, name: "Taro Yamada" },
+      issuer: did,
+      issuanceDate: "2023-02-01T00:00:00Z"
+    },
+    {
+      id: "http://example.edu/credentials/3",
+      type: ["VerifiableCredential","MembershipCredential"],
+      credentialSubject: { id: did, membership: "Premium Plan" },
+      issuer: did,
+      issuanceDate: "2023-03-01T00:00:00Z"
     }
-  };
+  ];
 
   return (
     <div>
       <h2>VC表示画面</h2>
-      <p>発行されたVCが表示されます。（まずはダミー）</p>
-      <pre>{JSON.stringify(dummyVc, null, 2)}</pre>
+      <p>このDIDに紐づくVCを複数表示します。</p>
+
+      {dummyVcs.map((vc, idx) => (
+        <div key={idx} style={{border:'1px solid #ccc', padding:'8px', marginBottom:'12px'}}>
+          <pre>{JSON.stringify(vc, null, 2)}</pre>
+        </div>
+      ))}
     </div>
   );
 };
