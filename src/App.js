@@ -109,7 +109,7 @@ const IdIssueScreen = () => {
           value={email}
           onChange={handleEmailChange}
           placeholder="example@domain.com"
-          style={{ width: '250px' }}
+          style={{ width: '230px' }}
         />
         {error && <p style={{ color: 'red', margin: '4px 0 0 0' }}>{error}</p>}
       </div>
@@ -159,7 +159,7 @@ const IdDisplayScreen = () => {
         value={did}
         onChange={e => setDid(e.target.value)}
         placeholder="did:key:... もしくは did:ethr:..."
-        style={{ width: '80%' }}
+        style={{ width: '40%' }}
       />
       <div>
         <button onClick={handleResolve}>DIDのドキュメントを表示</button>
