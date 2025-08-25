@@ -118,7 +118,7 @@ const IdDisplayScreen = () => {
         style={{width:'80%'}}
       />
       <div>
-        <button onClick={handleResolve}>DIDを解決して表示</button>
+        <button onClick={handleResolve}>DIDドキュメントを表示</button>
       </div>
 
       {doc && <pre>{JSON.stringify(doc, null, 2)}</pre>}
