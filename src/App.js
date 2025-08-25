@@ -195,7 +195,7 @@ const IdDisplayScreen = () => {
       {err && <p style={{ color: 'red' }}>エラー: {err}</p>}
       {issued && <p>発行されたDID: {issued.did}</p>}
 
-      <h3>これまでに発行されたDID一覧（同じメールアドレスのみ）</h3>
+      <h3>DID一覧（同じメールアドレスのみ）</h3>
       <ul>
         {history.map((item, idx) => (
           <li key={idx}>{item.did}</li>
