@@ -174,7 +174,9 @@ const IdDisplayScreen = () => {
   };
 
   const goVcDisplay = () => {
-    navigate('/display-vc', { state: { email: issued.email, inputDid: did } });
+    // 直接入力したDIDもVC表示に渡す
+    const targetEmail = issued?.email || ''; 
+    navigate('/display-vc', { state: { email: targetEmail, inputDid: did } });
   };
 
   return (
@@ -217,37 +219,38 @@ const VcDisplayScreen = () => {
   const [allVcs, setAllVcs] = React.useState([]);
 
   React.useEffect(() => {
-    if (!email) return;
+    if (!email && !inputDid) return;
 
     const aggregated = [];
 
-    // 入力された DID の VC
+    // 入力された DID の VC（直接入力でも表示）
     if (inputDid) {
       const vcsForInput = getVcsByDid(inputDid);
       vcsForInput.forEach(vc => aggregated.push({ did: inputDid, vc }));
     }
 
     // メールアドレスに紐づく履歴 DID の VC
-    const history = getDidHistoryByEmail(email);
-    history.forEach(item => {
-      // 入力 DID と同じものは二重追加しない
-      if (item.did !== inputDid) {
-        const vcs = getVcsByDid(item.did);
-        vcs.forEach(vc => aggregated.push({ did: item.did, vc }));
-      }
-    });
+    if (email) {
+      const history = getDidHistoryByEmail(email);
+      history.forEach(item => {
+        if (item.did !== inputDid) {
+          const vcs = getVcsByDid(item.did);
+          vcs.forEach(vc => aggregated.push({ did: item.did, vc }));
+        }
+      });
+    }
 
     setAllVcs(aggregated);
   }, [email, inputDid]);
 
-  if (!email) {
-    return <p>対象のメールアドレスが指定されていません。</p>;
+  if (!email && !inputDid) {
+    return <p>対象のDIDまたはメールアドレスが指定されていません。</p>;
   }
 
   return (
     <div>
       <h2>VC表示画面</h2>
-      <p>{email} に紐づくすべてのDIDのVCを表示します。</p>
+      <p>入力されたDIDおよびメールアドレスに紐づくすべてのDIDのVCを表示します。</p>
       {allVcs.length === 0 && <p>VCは存在しません。</p>}
       {allVcs.map((item, idx) => (
         <div key={idx} style={{ border: '1px solid #ccc', padding: '8px', marginBottom: '12px' }}>
