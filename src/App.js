@@ -21,7 +21,7 @@ function getVcsByDid(did) {
   return allVcs[did] || [];
 }
 
-// ダミーVCを生成
+// ダミーVCを生成（DIDごとに個数・内容が変わる）
 function generateDummyVcs(did, email) {
   const lastChar = did.slice(-1);
   const numVcs = parseInt(lastChar, 36) % 3 + 1; // 1~3個
@@ -57,34 +57,6 @@ function generateDummyVcs(did, email) {
 
   return vcs;
 }
-
-// 共通スタイル（レスポンシブ対応）
-const containerStyle = {
-  maxWidth: "800px",
-  margin: "0 auto",
-  padding: "16px",
-  boxSizing: "border-box",
-  wordBreak: "break-word"
-};
-
-const preStyle = {
-  whiteSpace: "pre-wrap",
-  wordBreak: "break-word",
-  overflowX: "auto",
-  background: "#f9f9f9",
-  padding: "8px",
-  borderRadius: "6px"
-};
-
-const cardStyle = {
-  border: "1px solid #ccc",
-  borderRadius: "8px",
-  padding: "12px",
-  marginBottom: "12px",
-  background: "#fff",
-  boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
-  overflowX: "auto"
-};
 
 const IdIssueScreen = () => {
   const [method, setMethod] = React.useState('key');
@@ -124,31 +96,34 @@ const IdIssueScreen = () => {
       saveVcsForDid(issued.did, dummyVcs);
 
       navigate('/display-id', { state: { issued } });
-
     } catch (e) {
       alert(`発行に失敗: ${e.message}`);
     }
   };
 
   return (
-    <div style={containerStyle}>
+    <div>
       <h2>ID発行画面</h2>
 
-      <div style={{marginBottom: 12}}>
+      <div style={{ marginBottom: 12 }}>
         <label>メールアドレス: </label>
         <input
           type="email"
           value={email}
           onChange={handleEmailChange}
           placeholder="example@domain.com"
-          style={{width: '100%', maxWidth: '300px'}}
+          style={{ width: '100%', maxWidth: '300px' }}
         />
-        {error && <p style={{color:'red'}}>{error}</p>}
+        {error && <p style={{ color: 'red', margin: '4px 0 0 0' }}>{error}</p>}
       </div>
 
-      <div style={{marginBottom: 12}}>
+      <div style={{ marginBottom: 12 }}>
         <label>方式: </label>
-        <select value={method} onChange={e => setMethod(e.target.value)}>
+        <select
+          value={method}
+          onChange={e => setMethod(e.target.value)}
+          style={{ width: '100%', maxWidth: '250px' }}
+        >
           <option value="key">did:key (Ed25519)</option>
           <option value="ethr">did:ethr (sepolia)</option>
         </select>
@@ -185,7 +160,7 @@ const IdDisplayScreen = () => {
   };
 
   return (
-    <div style={containerStyle}>
+    <div>
       <h2>ID表示画面</h2>
 
       {issued && <p>メールアドレス: {issued.email}</p>}
@@ -195,19 +170,36 @@ const IdDisplayScreen = () => {
         value={did}
         onChange={e => setDid(e.target.value)}
         placeholder="did:key:... もしくは did:ethr:..."
-        style={{width:'100%'}}
+        style={{ width: '100%', maxWidth: '100%', wordWrap: 'break-word' }}
       />
       <div>
         <button onClick={handleResolve}>DIDのドキュメントを表示</button>
       </div>
 
-      {doc && <pre style={preStyle}>{JSON.stringify(doc, null, 2)}</pre>}
-      {err && <p style={{color:'red'}}>エラー: {err}</p>}
+      {doc && (
+        <pre style={{
+          whiteSpace: 'pre-wrap',
+          wordWrap: 'break-word',
+          overflowX: 'auto',
+          maxWidth: '100%'
+        }}>
+          {JSON.stringify(doc, null, 2)}
+        </pre>
+      )}
+      {err && <p style={{ color: 'red' }}>エラー: {err}</p>}
 
-      {issued && <p>発行されたDID: {issued.did}</p>}
+      {issued && (
+        <p style={{
+          wordWrap: 'break-word',
+          overflowWrap: 'break-word',
+          maxWidth: '100%'
+        }}>
+          発行されたDID: {issued.did}
+        </p>
+      )}
 
-      <div style={{marginTop: '16px'}}>
-        <button onClick={goVcDisplay} style={{padding: '8px 16px', fontSize: '16px'}}>
+      <div style={{ marginTop: '16px' }}>
+        <button onClick={goVcDisplay} style={{ padding: '8px 16px', fontSize: '16px' }}>
           VC表示
         </button>
       </div>
@@ -226,40 +218,51 @@ const VcDisplayScreen = () => {
   }, [did]);
 
   return (
-    <div style={containerStyle}>
+    <div>
       <h2>VC表示画面</h2>
-      <p style={{wordBreak:"break-word"}}>{did} に紐づくVCを複数表示します。</p>
+      <p style={{ wordWrap: 'break-word' }}>{did} に紐づくVCを複数表示します。</p>
 
       {vcs.length === 0 && <p>VCは存在しません。</p>}
 
       {vcs.map((vc, idx) => (
-        <div key={idx} style={cardStyle}>
-          <pre style={preStyle}>{JSON.stringify(vc, null, 2)}</pre>
+        <div
+          key={idx}
+          style={{
+            border: '1px solid #ccc',
+            padding: '8px',
+            marginBottom: '12px',
+            wordWrap: 'break-word',
+            overflowX: 'auto'
+          }}
+        >
+          <pre style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}>
+            {JSON.stringify(vc, null, 2)}
+          </pre>
         </div>
       ))}
     </div>
   );
 };
 
-export default function App(){
+export default function App() {
   return (
     <Router>
-      <div className="App" style={{minHeight:"100vh", display:"flex", flexDirection:"column"}}>
-        <header className="App-header" style={{padding:"12px", background:"#f3f4f6"}}>
-          <h1 style={{fontSize:"20px"}}>DID PWA アプリ</h1>
+      <div className="App" style={{ padding: '8px', maxWidth: '100%' }}>
+        <header className="App-header">
+          <h1>DID PWA アプリ</h1>
           <nav>
-            <ul style={{display:"flex", listStyle:"none", padding:0, gap:"12px", flexWrap:"wrap"}}>
+            <ul style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', padding: 0, listStyle: 'none' }}>
               <li><Link to="/">ID発行</Link></li>
               <li><Link to="/display-id">ID表示</Link></li>
               <li><Link to="/display-vc">VC表示</Link></li>
             </ul>
           </nav>
         </header>
-        <main style={{flex:1, overflowY:"auto"}}>
+        <main style={{ width: '100%', overflowX: 'hidden' }}>
           <Routes>
-            <Route path="/" element={<IdIssueScreen/>}/>
-            <Route path="/display-id" element={<IdDisplayScreen/>}/>
-            <Route path="/display-vc" element={<VcDisplayScreen/>}/>
+            <Route path="/" element={<IdIssueScreen />} />
+            <Route path="/display-id" element={<IdDisplayScreen />} />
+            <Route path="/display-vc" element={<VcDisplayScreen />} />
           </Routes>
         </main>
       </div>
