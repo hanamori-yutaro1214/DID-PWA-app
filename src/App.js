@@ -9,6 +9,55 @@ import { universalResolve } from './services/resolver';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// VCの保存・取得関数
+function saveVcsForDid(did, vcs) {
+  const allVcs = JSON.parse(localStorage.getItem("vcsByDid") || "{}");
+  allVcs[did] = vcs; // DIDごとに上書きまたは新規追加
+  localStorage.setItem("vcsByDid", JSON.stringify(allVcs));
+}
+
+function getVcsByDid(did) {
+  const allVcs = JSON.parse(localStorage.getItem("vcsByDid") || "{}");
+  return allVcs[did] || [];
+}
+
+// ダミーVCを生成（DIDごとに個数・内容が変わる）
+function generateDummyVcs(did) {
+  const lastChar = did.slice(-1);
+  const numVcs = parseInt(lastChar, 36) % 3 + 1; // 1~3個
+  const vcs = [];
+
+  if (numVcs >= 1) {
+    vcs.push({
+      id: `http://example.edu/credentials/${did}-1`,
+      type: ["VerifiableCredential", "EmailCredential"],
+      credentialSubject: { id: did, email: `user_${did}@example.com` },
+      issuer: did,
+      issuanceDate: "2023-01-01T00:00:00Z",
+    });
+  }
+  if (numVcs >= 2) {
+    vcs.push({
+      id: `http://example.edu/credentials/${did}-2`,
+      type: ["VerifiableCredential", "ProfileCredential"],
+      credentialSubject: { id: did, name: `User ${did}` },
+      issuer: did,
+      issuanceDate: "2023-02-01T00:00:00Z",
+    });
+  }
+  if (numVcs >= 3) {
+    vcs.push({
+      id: `http://example.edu/credentials/${did}-3`,
+      type: ["VerifiableCredential", "MembershipCredential"],
+      credentialSubject: { id: did, membership: "Premium Plan" },
+      issuer: did,
+      issuanceDate: "2023-03-01T00:00:00Z",
+    });
+  }
+
+  return vcs;
+}
+
 const IdIssueScreen = () => {
   const [method, setMethod] = React.useState('key'); // 'key' | 'ethr'
   const [email, setEmail] = React.useState('');
@@ -43,6 +92,11 @@ const IdIssueScreen = () => {
       }
 
       const issued = { ...data, email };
+
+      // DIDに紐づくVCを生成して保存
+      const dummyVcs = generateDummyVcs(issued.did);
+      saveVcsForDid(issued.did, dummyVcs);
+
       navigate('/display-id', { state: { issued } });
 
     } catch (e) {
@@ -101,7 +155,7 @@ const IdDisplayScreen = () => {
   };
 
   const goVcDisplay = () => {
-    navigate('/display-vc', { state: { did } }); // ← DID を渡す
+    navigate('/display-vc', { state: { did } });
   };
 
   return (
@@ -126,7 +180,6 @@ const IdDisplayScreen = () => {
 
       {issued && <p>発行されたDID: {issued.did}</p>}
 
-      {/* VC表示ボタン */}
       <div style={{marginTop: '16px'}}>
         <button onClick={goVcDisplay} style={{padding: '8px 16px', fontSize: '16px'}}>
           VC表示
@@ -140,37 +193,22 @@ const VcDisplayScreen = () => {
   const location = useLocation();
   const did = location.state?.did || "did:example:default";
 
-  // 複数ダミーVCを生成
-  const dummyVcs = [
-    {
-      id: "http://example.edu/credentials/1",
-      type: ["VerifiableCredential","EmailCredential"],
-      credentialSubject: { id: did, email: "user@example.com" },
-      issuer: did,
-      issuanceDate: "2023-01-01T00:00:00Z"
-    },
-    {
-      id: "http://example.edu/credentials/2",
-      type: ["VerifiableCredential","ProfileCredential"],
-      credentialSubject: { id: did, name: "Taro Yamada" },
-      issuer: did,
-      issuanceDate: "2023-02-01T00:00:00Z"
-    },
-    {
-      id: "http://example.edu/credentials/3",
-      type: ["VerifiableCredential","MembershipCredential"],
-      credentialSubject: { id: did, membership: "Premium Plan" },
-      issuer: did,
-      issuanceDate: "2023-03-01T00:00:00Z"
-    }
-  ];
+  // DIDごとにVCを取得
+  const [vcs, setVcs] = React.useState([]);
+
+  React.useEffect(() => {
+    const vcsForDid = getVcsByDid(did);
+    setVcs(vcsForDid);
+  }, [did]);
 
   return (
     <div>
       <h2>VC表示画面</h2>
-      <p>このDIDに紐づくVCを複数表示します。</p>
+      <p>{did} に紐づくVCを複数表示します。</p>
 
-      {dummyVcs.map((vc, idx) => (
+      {vcs.length === 0 && <p>VCは存在しません。</p>}
+
+      {vcs.map((vc, idx) => (
         <div key={idx} style={{border:'1px solid #ccc', padding:'8px', marginBottom:'12px'}}>
           <pre>{JSON.stringify(vc, null, 2)}</pre>
         </div>
