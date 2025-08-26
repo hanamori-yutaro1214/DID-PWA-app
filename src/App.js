@@ -260,7 +260,7 @@ const VcDisplayScreen = () => {
 
   return (
     <div>
-      <h2>VC表示画面</h2>
+      <h2>VC一覧</h2>
       <p>入力されたDIDおよびメールアドレスに紐づくすべてのDIDのVCを表示します。</p>
       {allVcs.length === 0 && <p>VCは存在しません。</p>}
       {allVcs.map((item, idx) => (
