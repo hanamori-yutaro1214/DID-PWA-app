@@ -69,6 +69,19 @@ function generateDummyVcs(did, email) {
   }));
 }
 
+// ------------------ Helper: DID折り返し表示 ------------------
+function BreakableDid({ did, chunkSize = 25 }) {
+  return (
+    <>
+      {did.match(new RegExp(`.{1,${chunkSize}}`, 'g')).map((chunk, i) => (
+        <React.Fragment key={i}>
+          {chunk}<br />
+        </React.Fragment>
+      ))}
+    </>
+  );
+}
+
 // ------------------ ID発行画面 ------------------
 const IdIssueScreen = () => {
   const [method, setMethod] = React.useState('key');
@@ -191,12 +204,16 @@ const IdDisplayScreen = () => {
       </div>
       {doc && <pre>{JSON.stringify(doc, null, 2)}</pre>}
       {err && <p style={{ color: 'red' }}>エラー: {err}</p>}
-      {issued && <p>発行されたDID: {issued.did}</p>}
+      {issued && (
+        <p>
+          発行されたDID: <BreakableDid did={issued.did} />
+        </p>
+      )}
 
       <h3>DID一覧（同じメールアドレスのみ）</h3>
       <ul>
         {history.map((item, idx) => (
-          <li key={idx}>{item.did}</li>
+          <li key={idx}><BreakableDid did={item.did} /></li>
         ))}
       </ul>
 
@@ -248,7 +265,9 @@ const VcDisplayScreen = () => {
       {allVcs.length === 0 && <p>VCは存在しません。</p>}
       {allVcs.map((item, idx) => (
         <div key={idx} style={{ border: '1px solid #ccc', padding: '8px', marginBottom: '12px' }}>
-          <p><strong>DID: {item.did}</strong></p>
+          <p>
+            <strong>DID: <BreakableDid did={item.did} /></strong>
+          </p>
           <pre>{JSON.stringify(item.vc, null, 2)}</pre>
         </div>
       ))}
