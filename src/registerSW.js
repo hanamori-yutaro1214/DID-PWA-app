@@ -17,10 +17,21 @@ export function registerSW() {
       }
     });
 
-    // 新しい SW が waiting 状態になったら skipWaiting 送信
-    wb.addEventListener('waiting', () => {
+    // 新しい SW が waiting 状態になったら skipWaiting を送信
+    wb.addEventListener('waiting', (event) => {
       console.log('New SW waiting, sending SKIP_WAITING');
       wb.messageSW({ type: 'SKIP_WAITING' });
+    });
+
+    // エラーや更新をログ
+    wb.addEventListener('redundant', () => {
+      console.log('The installed service worker became redundant.');
+    });
+
+    wb.addEventListener('installed', (event) => {
+      if (event.isUpdate) {
+        console.log('A new version of the service worker has been installed.');
+      }
     });
 
     // SW 登録
