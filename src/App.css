@@ -47,4 +47,15 @@ pre {
   margin: 20px auto;
   max-width: 80%;
   overflow-x: auto;
+  white-space: pre-wrap;      /* 長いJSONも折り返す */
+  word-break: break-word;
+}
+
+/* VC表示画面のDIDを折り返す対応 */
+.vc-item p strong,
+.did-list li {
+  display: inline-block;
+  max-width: 100%;
+  white-space: normal;       /* 折り返しを許可 */
+  word-break: break-all;     /* 英数字の途中でも折り返す */
 }
