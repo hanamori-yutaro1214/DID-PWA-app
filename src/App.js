@@ -36,40 +36,37 @@ function getDidHistoryByEmail(email) {
   return historyByEmail[email] || [];
 }
 
-// ダミーVCを生成
+// ------------------ VCテンプレート定義 ------------------
+const vcTemplates = [
+  {
+    type: ["VerifiableCredential", "EmailCredential"],
+    subject: (did, email) => ({ id: did, email }),
+    issuanceDate: "2023-01-01T00:00:00Z",
+  },
+  {
+    type: ["VerifiableCredential", "ProfileCredential"],
+    subject: (did) => ({ id: did, name: `User ${did}` }),
+    issuanceDate: "2023-02-01T00:00:00Z",
+  },
+  {
+    type: ["VerifiableCredential", "MembershipCredential"],
+    subject: (did) => ({ id: did, membership: "Premium Plan" }),
+    issuanceDate: "2023-03-01T00:00:00Z",
+  },
+];
+
+// ダミーVCを生成（汎用化）
 function generateDummyVcs(did, email) {
   const lastChar = did.slice(-1);
-  const numVcs = parseInt(lastChar, 36) % 3 + 1; // 1~3個
-  const vcs = [];
+  const numVcs = parseInt(lastChar, 36) % vcTemplates.length + 1;
 
-  if (numVcs >= 1) {
-    vcs.push({
-      id: `http://example.edu/credentials/${did}-1`,
-      type: ["VerifiableCredential", "EmailCredential"],
-      credentialSubject: { id: did, email: email },
-      issuer: did,
-      issuanceDate: "2023-01-01T00:00:00Z",
-    });
-  }
-  if (numVcs >= 2) {
-    vcs.push({
-      id: `http://example.edu/credentials/${did}-2`,
-      type: ["VerifiableCredential", "ProfileCredential"],
-      credentialSubject: { id: did, name: `User ${did}` },
-      issuer: did,
-      issuanceDate: "2023-02-01T00:00:00Z",
-    });
-  }
-  if (numVcs >= 3) {
-    vcs.push({
-      id: `http://example.edu/credentials/${did}-3`,
-      type: ["VerifiableCredential", "MembershipCredential"],
-      credentialSubject: { id: did, membership: "Premium Plan" },
-      issuer: did,
-      issuanceDate: "2023-03-01T00:00:00Z",
-    });
-  }
-  return vcs;
+  return vcTemplates.slice(0, numVcs).map((tpl, idx) => ({
+    id: `http://example.edu/credentials/${did}-${idx + 1}`,
+    type: tpl.type,
+    credentialSubject: tpl.subject(did, email),
+    issuer: did,
+    issuanceDate: tpl.issuanceDate,
+  }));
 }
 
 // ------------------ ID発行画面 ------------------
@@ -174,7 +171,6 @@ const IdDisplayScreen = () => {
   };
 
   const goVcDisplay = () => {
-    // 直接入力したDIDもVC表示に渡す
     const targetEmail = issued?.email || ''; 
     navigate('/display-vc', { state: { email: targetEmail, inputDid: did } });
   };
@@ -223,13 +219,11 @@ const VcDisplayScreen = () => {
 
     const aggregated = [];
 
-    // 入力された DID の VC（直接入力でも表示）
     if (inputDid) {
       const vcsForInput = getVcsByDid(inputDid);
       vcsForInput.forEach(vc => aggregated.push({ did: inputDid, vc }));
     }
 
-    // メールアドレスに紐づく履歴 DID の VC
     if (email) {
       const history = getDidHistoryByEmail(email);
       history.forEach(item => {
