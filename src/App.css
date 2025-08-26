@@ -46,5 +46,10 @@ pre {
   text-align: left;
   margin: 20px auto;
   max-width: 80%;
-  overflow-x: auto;
+
+  /* 🔽 ここを追加／修正して did:key の横広がりを防ぐ */
+  white-space: pre-wrap;   /* 折り返しを許可 */
+  word-break: break-all;   /* 単語の途中でも折り返し可能 */
+  overflow-wrap: anywhere; /* 新しいブラウザでの折り返し補強 */
+  overflow-x: auto;        /* 横スクロールも fallback として残す */
 }
