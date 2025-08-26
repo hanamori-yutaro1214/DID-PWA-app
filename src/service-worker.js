@@ -4,25 +4,27 @@ import { clientsClaim } from 'workbox-core';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { precacheAndRoute, createHandlerBoundToURL } from 'workbox-precaching';
 import { registerRoute } from 'workbox-routing';
-import { StaleWhileRevalidate } from 'workbox-strategies';
+import { StaleWhileRevalidate, NetworkFirst } from 'workbox-strategies';
 
 clientsClaim();
 
 // Workbox がビルド時に差し込むファイル一覧を precache
 precacheAndRoute(self.__WB_MANIFEST);
 
-// index.html を fallback に設定（古いJS/CSSが404でもアプリを表示可能にする）
+// index.html を fallback に設定
 const handler = createHandlerBoundToURL('/index.html');
 registerRoute(
-  ({ request, url }) => request.mode === 'navigate' && !url.pathname.startsWith('/api'),
+  ({ request, url }) =>
+    request.mode === 'navigate' && !url.pathname.startsWith('/api'),
   handler
 );
 
-// JS / CSS は最新を優先してキャッシュ
+// JS / CSS / MAP ファイルは最新を優先してキャッシュ
 registerRoute(
   ({ request }) =>
     request.destination === 'script' ||
-    request.destination === 'style',
+    request.destination === 'style' ||
+    request.url.endsWith('.map'),
   new StaleWhileRevalidate({
     cacheName: 'static-resources',
   })
@@ -30,9 +32,19 @@ registerRoute(
 
 // 画像キャッシュ
 registerRoute(
-  ({ url }) => url.origin === self.location.origin && url.pathname.endsWith('.png'),
+  ({ url }) => url.origin === self.location.origin && url.pathname.match(/\.(png|jpg|jpeg|svg|gif)$/),
   new StaleWhileRevalidate({
     cacheName: 'images-cache',
+    plugins: [new ExpirationPlugin({ maxEntries: 50 })],
+  })
+);
+
+// API リクエストはネットワーク優先
+registerRoute(
+  ({ url }) => url.pathname.startsWith('/api/'),
+  new NetworkFirst({
+    cacheName: 'api-cache',
+    networkTimeoutSeconds: 5,
     plugins: [new ExpirationPlugin({ maxEntries: 50 })],
   })
 );
