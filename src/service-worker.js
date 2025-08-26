@@ -8,14 +8,29 @@ import { StaleWhileRevalidate, NetworkFirst } from 'workbox-strategies';
 
 clientsClaim();
 
-// Workbox がビルド時に差し込むファイル一覧を precache
+// precache ビルド生成ファイル
 precacheAndRoute(self.__WB_MANIFEST);
+
+// 新しい SW を即座に有効化
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+});
+
+// 古いキャッシュを完全削除
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+      await self.clients.claim();
+    })()
+  );
+});
 
 // index.html を fallback に設定
 const handler = createHandlerBoundToURL('/index.html');
 registerRoute(
-  ({ request, url }) =>
-    request.mode === 'navigate' && !url.pathname.startsWith('/api'),
+  ({ request, url }) => request.mode === 'navigate' && !url.pathname.startsWith('/api'),
   handler
 );
 
@@ -49,7 +64,7 @@ registerRoute(
   })
 );
 
-// skipWaiting を有効化
+// skipWaiting を有効化し、新しい SW が即時反映される
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
