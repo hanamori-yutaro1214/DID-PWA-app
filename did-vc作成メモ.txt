@@ -1,0 +1,173 @@
+【依頼内容】
+DIDのスマホアプリ（PWA）の作成をお願いします。
+・ID発行、ID表示、VC表示画面
+・DID:ETHRを利用して採番する。※最初はDID:Keyなどを利用したものでも良い
+DIDの一覧表示、VCの複数表示
+その後ある程度の機能を実装するなら、NodejsでReactとかWorkBoxというGoogleのPWA向けライブラリを使ってみると良さそう
+
+VCの発行機能
+-----------------------------------------------------------------------------
+【PWA化後の動作確認URL】
+http://192.168.1.3:3000
+-----------------------------------------------------------------------------
+【ローカルの起動確認コマンド】
+npm run build
+npx serve -s build
+-----------------------------------------------------------------------------
+【git等ネットワーク公開用】
+ "homepage":https://hanamori-yutaro1214.github.io/DID-PWA-app
+【DID Document とは】
+
+DID（分散ID）に関する公開情報や鍵の情報をまとめた JSON ドキュメント
+
+DIDの形式
+
+「did:key:」で始まり、後ろは公開鍵情報を Base58BTC でエンコードした文字列
+
+公開鍵情報
+
+verificationMethod で Ed25519 の公開鍵が含まれ、DID の認証・署名に使われる
+
+認証・署名用途
+
+authentication：DID所有者を認証するため
+
+assertionMethod：VCなどを署名するため
+
+要点
+
+発行した DID と対応する鍵の情報を安全に他者と共有可能
+
+DIDを持つだけで、自分のアイデンティティをブロックチェーンやP2P環境で証明可能
+
+-------------------------------------------------------------------------------
+
+【PWA化後の動作確認】
+各画面の遷移について→問題無し
+メールアドレスを入力後でないとDIDの発行ボタンが投下出来ない→問題無し
+スマホへのアプリとしてのインストールやホーム画面にアプリのアイコンとして追加→自身のiPhoneやこのPCでは両方確認済み。
+インターネットをオフにした状態での動作確認→iPhoneとPC共にchromeもSafariでも出来てそう。
+VC一覧表示(複数表示)→プッシュ後反映を確認。複数表示、不適切なVCはエラーを表示iPhoneで同様の動作確認。
+-------------------------------------------------------------------------------
+【DID:Keyについて】
+did:key:
+→ これは DID のスキーム部分で、DID:Key 方式であることを示すプレフィックスです。
+
+z
+→ これは Multibase エンコーディング のプレフィックスです。
+
+DID:Key では通常 Base58BTC エンコードが使われます。
+
+z は Base58BTC であることを示すコードです。
+
+6Mk...
+→ これは Multicodec と公開鍵の情報を Base58BTC でエンコードした部分です。
+
+Multicodec は「この鍵がどのタイプか」を示すバイト列です（Ed25519 鍵なのか、Secp256k1 鍵なのかなど）。
+
+例えば Ed25519 公開鍵の場合、先頭に [0xed, 0x01] のバイトが付加されます。
+
+それを含めた公開鍵全体を Base58BTC でエンコードすると 6Mk... のような文字列になります。
+-------------------------------------------------------------------------------
+【DID:Key の流れ】
+
+公開鍵（例: Ed25519）を作成
+
+Multicodec プレフィックス（鍵の種類を表すバイト列）を付与
+
+そのバイト列全体を Base58BTC でエンコード
+
+エンコード結果に z を付けて multibase であることを示す
+
+その前に did:key: を付けて DID 完全形にする
+-------------------------------------------------------------------------------
+【まとめ】
+did:key: → DID:Key 方式であることを示す
+
+z → Base58BTC でエンコードされていることを示す Multibase プレフィックス
+
+6Mk... → Multicodec プレフィックス + 公開鍵の Base58 表現
+--------------------------------------------------------------------------------
+【テスト用did:key】
+did:key:z6Mkjc5VGLkZTaKYhcpoYTrhYsp8ZgMmfytzBBxoc1TRgSdu
+did:key:z6MkuZa7druoJ84w7ZfRU2h7fkC2jkpE7i69SQ7ehKcKYzKH
+did:key:z6MkepWiezAszYfhPmLso9KWJeSftiCUctYz6UHCLRivsJsc
+-------------------------------------------------------------------------------
+【VC複数生成】
+App.jsのvcテンプレート定義で定義を増やせばランダムに複数生成されるVCの数を増やせる。
+例
+ {
+    type: ["VerifiableCredential", "AddressCredential"],
+    subject: (did) => ({ id: did, address: "Tokyo, Japan" }),
+    issuanceDate: "2023-05-01T00:00:00Z",
+  },
+-------------------------------------------------------------------------------
+【ソースツリーでコミット対象が選択されていませんの対処方法】
+$ git rev-parse --show-toplevel　←ソースツリーでターミナルを開きコマンドで確認。
+C:/Users/y50039/Documents/DID-PWA-app←誤り。
+正しいパスはC:\Users\y50039\Desktop\DID-PWA-app\did-pwa-app
+-------------------------------------------------------------------------------
+【ハードコーディング】
+// ダミーVCを生成
+function generateDummyVcs(did, email) {
+  const lastChar = did.slice(-1);
+  const numVcs = parseInt(lastChar, 36) % 3 + 1; // 1~3個
+  const vcs = [];
+
+  if (numVcs >= 1) {
+    vcs.push({
+      id: `http://example.edu/credentials/${did}-1`,
+      type: ["VerifiableCredential", "EmailCredential"],
+      credentialSubject: { id: did, email: email },
+      issuer: did,
+      issuanceDate: "2023-01-01T00:00:00Z",
+    });
+  }
+  if (numVcs >= 2) {
+    vcs.push({
+      id: `http://example.edu/credentials/${did}-2`,
+      type: ["VerifiableCredential", "ProfileCredential"],
+      credentialSubject: { id: did, name: `User ${did}` },
+      issuer: did,
+      issuanceDate: "2023-02-01T00:00:00Z",
+    });
+  }
+  if (numVcs >= 3) {
+    vcs.push({
+      id: `http://example.edu/credentials/${did}-3`,
+      type: ["VerifiableCredential", "MembershipCredential"],
+      credentialSubject: { id: did, membership: "Premium Plan" },
+      issuer: did,
+      issuanceDate: "2023-03-01T00:00:00Z",
+    });
+  }
+  return vcs;
+}
+---------------------------------------------------------------------------------
+【did:key折り返し表示】
+function BreakableDid({ did, chunkSize = 25 }) {
+  return (
+    <>
+      {did.match(new RegExp(`.{1,${chunkSize}}`, 'g')).map((chunk, i) => (
+        <React.Fragment key={i}>
+          {chunk}<br />
+        </React.Fragment>
+      ))}
+    </>
+  );
+}
+内容と理由
+did を chunkSize 文字ごとに分割して <br /> を挿入。
+
+これにより、長い did:key が画面幅に合わせて折り返される。
+
+chunkSize は初期値 25 文字に設定（必要に応じて変更可）。
+
+React.Fragment を使うことで <br /> を挿入しても DOM が崩れない。
+
+{issued && (
+  <p>
+    発行されたDID: <BreakableDid did={issued.did} />
+  </p>
+)}
+
