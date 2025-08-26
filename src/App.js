@@ -116,27 +116,27 @@ const IdIssueScreen = () => {
   };
 
   return (
-    <div className="container">
+    <div>
       <h2>ID発行画面</h2>
-      <div className="form-group">
+      <div style={{ marginBottom: 12 }}>
         <label>メールアドレス: </label>
         <input
           type="email"
           value={email}
           onChange={handleEmailChange}
           placeholder="example@domain.com"
-          className="input-field"
+          style={{ width: '238px' }}
         />
-        {error && <p className="error-text">{error}</p>}
+        {error && <p style={{ color: 'red' }}>{error}</p>}
       </div>
-      <div className="form-group">
+      <div style={{ marginBottom: 12 }}>
         <label>方式: </label>
-        <select value={method} onChange={e => setMethod(e.target.value)} className="input-field">
+        <select value={method} onChange={e => setMethod(e.target.value)}>
           <option value="key">did:key (Ed25519)</option>
           <option value="ethr">did:ethr (sepolia)</option>
         </select>
       </div>
-      <button onClick={handleIssue} disabled={!!error || !email} className="btn-primary">
+      <button onClick={handleIssue} disabled={!!error || !email}>
         DIDを発行する
       </button>
     </div>
@@ -176,7 +176,7 @@ const IdDisplayScreen = () => {
   };
 
   return (
-    <div className="container">
+    <div>
       <h2>ID表示画面</h2>
       {issued && <p>メールアドレス: {issued.email}</p>}
       <p>DID Documentを解決し、表示します。</p>
@@ -184,24 +184,24 @@ const IdDisplayScreen = () => {
         value={did}
         onChange={e => setDid(e.target.value)}
         placeholder="did:key:... もしくは did:ethr:..."
-        className="input-field full-width"
+        style={{ width: '60%' }}
       />
       <div>
-        <button onClick={handleResolve} className="btn-primary">DIDのドキュメントを表示</button>
+        <button onClick={handleResolve}>DIDのドキュメントを表示</button>
       </div>
-      {doc && <pre className="doc-output">{JSON.stringify(doc, null, 2)}</pre>}
-      {err && <p className="error-text">エラー: {err}</p>}
+      {doc && <pre>{JSON.stringify(doc, null, 2)}</pre>}
+      {err && <p style={{ color: 'red' }}>エラー: {err}</p>}
       {issued && <p>発行されたDID: {issued.did}</p>}
 
       <h3>DID一覧（同じメールアドレスのみ）</h3>
-      <ul className="did-list">
+      <ul>
         {history.map((item, idx) => (
           <li key={idx}>{item.did}</li>
         ))}
       </ul>
 
-      <div className="btn-container">
-        <button onClick={goVcDisplay} className="btn-primary">VC表示</button>
+      <div style={{ marginTop: '16px' }}>
+        <button onClick={goVcDisplay}>VC表示</button>
       </div>
     </div>
   );
@@ -242,18 +242,16 @@ const VcDisplayScreen = () => {
   }
 
   return (
-    <div className="container">
+    <div>
       <h2>VC表示画面</h2>
       <p>入力されたDIDおよびメールアドレスに紐づくすべてのDIDのVCを表示します。</p>
       {allVcs.length === 0 && <p>VCは存在しません。</p>}
-      <div className="vc-list">
-        {allVcs.map((item, idx) => (
-          <div key={idx} className="vc-item">
-            <p><strong>DID: {item.did}</strong></p>
-            <pre>{JSON.stringify(item.vc, null, 2)}</pre>
-          </div>
-        ))}
-      </div>
+      {allVcs.map((item, idx) => (
+        <div key={idx} style={{ border: '1px solid #ccc', padding: '8px', marginBottom: '12px' }}>
+          <p><strong>DID: {item.did}</strong></p>
+          <pre>{JSON.stringify(item.vc, null, 2)}</pre>
+        </div>
+      ))}
     </div>
   );
 };
@@ -266,7 +264,7 @@ export default function App() {
         <header className="App-header">
           <h1>DID PWA アプリ</h1>
           <nav>
-            <ul className="nav-list">
+            <ul>
               <li><Link to="/">ID発行</Link></li>
               <li><Link to="/display-id">ID表示</Link></li>
               <li><Link to="/display-vc">VC表示</Link></li>
