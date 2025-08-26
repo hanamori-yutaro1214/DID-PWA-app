@@ -2,7 +2,8 @@
 importScripts('https://storage.googleapis.com/workbox-cdn/releases/6.5.4/workbox-sw.js');
 
 if (workbox) {
-  const SW_VERSION = 'v1.0.0'; // ビルドごとに更新する
+  // ビルドごとに更新するバージョン番号を付与
+  const SW_VERSION = 'v20250826-1';
 
   // クライアント制御と skipWaiting
   workbox.core.clientsClaim();
@@ -12,10 +13,12 @@ if (workbox) {
   workbox.precaching.precacheAndRoute([
     { url: '/DID-PWA-app/', revision: SW_VERSION },
     { url: '/DID-PWA-app/index.html', revision: SW_VERSION },
-    { url: '/DID-PWA-app/offline.html', revision: SW_VERSION }
+    { url: '/DID-PWA-app/offline.html', revision: SW_VERSION },
+    { url: '/DID-PWA-app/main.9d8f832f.js', revision: SW_VERSION },
+    { url: '/DID-PWA-app/main.0e01b95f.css', revision: SW_VERSION }
   ]);
 
-  // 古いキャッシュをバージョン管理で削除
+  // 古いキャッシュを削除
   const RUNTIME_CACHE = `runtime-cache-${SW_VERSION}`;
   self.addEventListener('activate', (event) => {
     event.waitUntil(
@@ -37,7 +40,7 @@ if (workbox) {
     async ({ request }) => {
       try {
         return await new workbox.strategies.NetworkFirst({
-          cacheName: 'html-cache',
+          cacheName: `html-cache-${SW_VERSION}`,
         }).handle({ request });
       } catch (error) {
         return caches.match('/DID-PWA-app/offline.html');
