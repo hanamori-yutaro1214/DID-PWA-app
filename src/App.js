@@ -130,7 +130,7 @@ const IdIssueScreen = () => {
 
   return (
     <div>
-      <h2>ID発行画面</h2>
+      <h2>DID発行</h2>
       <div style={{ marginBottom: 12 }}>
         <label>メールアドレス: </label>
         <input
