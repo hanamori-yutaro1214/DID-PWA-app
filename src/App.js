@@ -281,7 +281,7 @@ export default function App() {
     <Router>
       <div className="App">
         <header className="App-header">
-          <h1>DIDテストアプリ</h1>
+          <h1>DIDアプリ</h1>
           <nav>
             <ul>
               <li><Link to="/">ID発行</Link></li>
