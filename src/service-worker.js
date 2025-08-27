@@ -7,7 +7,7 @@ import { precacheAndRoute, createHandlerBoundToURL } from "workbox-precaching";
 import { registerRoute, NavigationRoute } from "workbox-routing";
 import { StaleWhileRevalidate, CacheFirst, NetworkFirst } from "workbox-strategies";
 
-const SW_VERSION = "v1.0.1";
+const SW_VERSION = "v1.0.2";
 
 // 即時適用
 self.skipWaiting();

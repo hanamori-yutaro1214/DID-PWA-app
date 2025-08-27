@@ -190,7 +190,7 @@ const IdDisplayScreen = () => {
 
   return (
     <div>
-      <h2>ID表示画面</h2>
+      <h2>DID表示</h2>
       {issued && <p>メールアドレス: {issued.email}</p>}
       <p>DID Documentを解決して、表示します。</p>
       <input
