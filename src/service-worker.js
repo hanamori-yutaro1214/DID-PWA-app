@@ -1,72 +1,63 @@
 /* eslint-disable no-restricted-globals */
+/// <reference lib="webworker" />
 
-import { clientsClaim } from 'workbox-core';
-import { ExpirationPlugin } from 'workbox-expiration';
-import { precacheAndRoute, createHandlerBoundToURL } from 'workbox-precaching';
-import { registerRoute } from 'workbox-routing';
-import { StaleWhileRevalidate, NetworkFirst } from 'workbox-strategies';
+import { clientsClaim } from "workbox-core";
+import { ExpirationPlugin } from "workbox-expiration";
+import { precacheAndRoute, createHandlerBoundToURL } from "workbox-precaching";
+import { registerRoute, NavigationRoute } from "workbox-routing";
+import { StaleWhileRevalidate, CacheFirst, NetworkFirst } from "workbox-strategies";
 
+const SW_VERSION = "v1.0.0";
+
+// 即時適用
+self.skipWaiting();
 clientsClaim();
 
-// precache ビルド生成ファイル
+// precache
 precacheAndRoute(self.__WB_MANIFEST);
 
-// 新しい SW を即座に有効化
-self.addEventListener('install', (event) => {
-  self.skipWaiting();
-});
+// HTMLナビゲーション
+const handler = createHandlerBoundToURL("/index.html");
+const navigationRoute = new NavigationRoute(handler);
+registerRoute(navigationRoute);
 
-// 古いキャッシュを完全削除
-self.addEventListener('activate', (event) => {
+// JS, CSS → SWR
+registerRoute(
+  ({ request }) => request.destination === "script" || request.destination === "style",
+  new StaleWhileRevalidate({ cacheName: `static-resources-${SW_VERSION}` })
+);
+
+// 画像 → CacheFirst
+registerRoute(
+  ({ request }) => request.destination === "image",
+  new CacheFirst({
+    cacheName: `images-${SW_VERSION}`,
+    plugins: [new ExpirationPlugin({ maxEntries: 50 })],
+  })
+);
+
+// API → NetworkFirst
+registerRoute(
+  ({ url }) => url.pathname.startsWith("/api/"),
+  new NetworkFirst({ cacheName: `api-${SW_VERSION}` })
+);
+
+// オフラインフォールバック
+self.addEventListener("install", (event) => {
   event.waitUntil(
-    (async () => {
-      const keys = await caches.keys();
-      await Promise.all(keys.map((k) => caches.delete(k)));
-      await self.clients.claim();
-    })()
+    caches.open(`offline-${SW_VERSION}`).then((cache) => cache.add("/offline.html"))
   );
 });
 
-// index.html を fallback に設定
-const handler = createHandlerBoundToURL('/index.html');
-registerRoute(
-  ({ request, url }) => request.mode === 'navigate' && !url.pathname.startsWith('/api'),
-  handler
-);
-
-// JS / CSS / MAP ファイルは最新を優先してキャッシュ
-registerRoute(
-  ({ request }) =>
-    request.destination === 'script' ||
-    request.destination === 'style' ||
-    request.url.endsWith('.map'),
-  new StaleWhileRevalidate({
-    cacheName: 'static-resources',
-  })
-);
-
-// 画像キャッシュ
-registerRoute(
-  ({ url }) => url.origin === self.location.origin && url.pathname.match(/\.(png|jpg|jpeg|svg|gif)$/),
-  new StaleWhileRevalidate({
-    cacheName: 'images-cache',
-    plugins: [new ExpirationPlugin({ maxEntries: 50 })],
-  })
-);
-
-// API リクエストはネットワーク優先
-registerRoute(
-  ({ url }) => url.pathname.startsWith('/api/'),
-  new NetworkFirst({
-    cacheName: 'api-cache',
-    networkTimeoutSeconds: 5,
-    plugins: [new ExpirationPlugin({ maxEntries: 50 })],
-  })
-);
-
-// skipWaiting を有効化し、新しい SW が即時反映される
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
+// 古いキャッシュ削除
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys
+          .filter((key) => !key.includes(SW_VERSION))
+          .map((key) => caches.delete(key))
+      )
+    )
+  );
 });
