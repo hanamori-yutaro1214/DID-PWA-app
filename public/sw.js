@@ -1,69 +1,76 @@
-/* eslint-disable no-restricted-globals */
-/// <reference lib="webworker" />
+/* public/sw.js */
+importScripts('https://storage.googleapis.com/workbox-cdn/releases/6.5.4/workbox-sw.js');
 
-import { clientsClaim } from "workbox-core";
-import { ExpirationPlugin } from "workbox-expiration";
-import { precacheAndRoute, createHandlerBoundToURL } from "workbox-precaching";
-import { registerRoute, NavigationRoute } from "workbox-routing";
-import { StaleWhileRevalidate, CacheFirst, NetworkFirst } from "workbox-strategies";
+if (workbox) {
+  const SW_VERSION = 'v1.0.4'; // ビルドごとに更新する
 
-const SW_VERSION = "v1.0.3"; // 新しいバージョンに更新
+  // クライアント制御と skipWaiting
+  workbox.core.clientsClaim();
+  workbox.core.skipWaiting();
 
-// 即時適用
-self.addEventListener("install", (event) => {
-  self.skipWaiting(); // インストール後すぐ新しい SW を適用
-  event.waitUntil(
-    caches.open(`offline-${SW_VERSION}`).then((cache) => cache.add("/offline.html"))
+  // 事前キャッシュ（revisionにバージョンを追加）
+  workbox.precaching.precacheAndRoute([
+    { url: '/DID-PWA-app/', revision: SW_VERSION },
+    { url: '/DID-PWA-app/index.html', revision: SW_VERSION },
+    { url: '/DID-PWA-app/offline.html', revision: SW_VERSION }
+  ]);
+
+  // 古いキャッシュをバージョン管理で削除
+  const RUNTIME_CACHE = `runtime-cache-${SW_VERSION}`;
+  self.addEventListener('activate', (event) => {
+    event.waitUntil(
+      caches.keys().then((keys) =>
+        Promise.all(
+          keys.map((key) => {
+            if (!key.includes(SW_VERSION) && !key.startsWith('workbox-precache')) {
+              return caches.delete(key);
+            }
+          })
+        )
+      ).then(() => self.clients.claim())
+    );
+  });
+
+  // HTMLナビゲーション: NetworkFirst
+  workbox.routing.registerRoute(
+    ({ request }) => request.mode === 'navigate',
+    async ({ request }) => {
+      try {
+        return await new workbox.strategies.NetworkFirst({
+          cacheName: 'html-cache',
+        }).handle({ request });
+      } catch (error) {
+        return caches.match('/DID-PWA-app/offline.html');
+      }
+    }
   );
-});
 
-self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    (async () => {
-      // 古いキャッシュを削除
-      const keys = await caches.keys();
-      await Promise.all(
-        keys
-          .filter((key) => !key.includes(SW_VERSION))
-          .map((key) => caches.delete(key))
-      );
-      await clients.claim(); // 新しい SW をすぐ制御下に置く
-    })()
+  // JS / CSS / worker は StaleWhileRevalidate
+  workbox.routing.registerRoute(
+    ({ request }) => ['style','script','worker'].includes(request.destination),
+    new workbox.strategies.StaleWhileRevalidate({
+      cacheName: `static-assets-${SW_VERSION}`
+    })
   );
-});
 
-// precache
-precacheAndRoute(self.__WB_MANIFEST);
+  // 画像キャッシュ
+  workbox.routing.registerRoute(
+    ({ request }) => request.destination === 'image',
+    new workbox.strategies.CacheFirst({
+      cacheName: `image-cache-${SW_VERSION}`,
+      plugins: [
+        new workbox.expiration.ExpirationPlugin({
+          maxAgeSeconds: 60 * 60 * 24 * 30
+        })
+      ]
+    })
+  );
 
-// HTMLナビゲーション
-const handler = createHandlerBoundToURL("/index.html");
-const navigationRoute = new NavigationRoute(handler);
-registerRoute(navigationRoute);
-
-// JS, CSS → StaleWhileRevalidate
-registerRoute(
-  ({ request }) => request.destination === "script" || request.destination === "style",
-  new StaleWhileRevalidate({ cacheName: `static-resources-${SW_VERSION}` })
-);
-
-// 画像 → CacheFirst
-registerRoute(
-  ({ request }) => request.destination === "image",
-  new CacheFirst({
-    cacheName: `images-${SW_VERSION}`,
-    plugins: [new ExpirationPlugin({ maxEntries: 50 })],
-  })
-);
-
-// API → NetworkFirst
-registerRoute(
-  ({ url }) => url.pathname.startsWith("/api/"),
-  new NetworkFirst({ cacheName: `api-${SW_VERSION}` })
-);
-
-// 新しい SW をすぐ反映するためのメッセージ受信
-self.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "SKIP_WAITING") {
-    self.skipWaiting();
-  }
-});
+  // 外部 API
+  workbox.routing.registerRoute(
+    ({ url, request }) => request.method === 'GET' && url.origin !== self.location.origin,
+    new workbox.strategies.NetworkFirst({
+      cacheName: `api-cache-${SW_VERSION}`
+    })
+  );
+}
