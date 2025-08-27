@@ -7,11 +7,30 @@ import { precacheAndRoute, createHandlerBoundToURL } from "workbox-precaching";
 import { registerRoute, NavigationRoute } from "workbox-routing";
 import { StaleWhileRevalidate, CacheFirst, NetworkFirst } from "workbox-strategies";
 
-const SW_VERSION = "v1.0.2";
+const SW_VERSION = "v1.0.3"; // 新しいバージョンに更新
 
 // 即時適用
-self.skipWaiting();
-clientsClaim();
+self.addEventListener("install", (event) => {
+  self.skipWaiting(); // インストール後すぐ新しい SW を適用
+  event.waitUntil(
+    caches.open(`offline-${SW_VERSION}`).then((cache) => cache.add("/offline.html"))
+  );
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    (async () => {
+      // 古いキャッシュを削除
+      const keys = await caches.keys();
+      await Promise.all(
+        keys
+          .filter((key) => !key.includes(SW_VERSION))
+          .map((key) => caches.delete(key))
+      );
+      await clients.claim(); // 新しい SW をすぐ制御下に置く
+    })()
+  );
+});
 
 // precache
 precacheAndRoute(self.__WB_MANIFEST);
@@ -21,7 +40,7 @@ const handler = createHandlerBoundToURL("/index.html");
 const navigationRoute = new NavigationRoute(handler);
 registerRoute(navigationRoute);
 
-// JS, CSS → SWR
+// JS, CSS → StaleWhileRevalidate
 registerRoute(
   ({ request }) => request.destination === "script" || request.destination === "style",
   new StaleWhileRevalidate({ cacheName: `static-resources-${SW_VERSION}` })
@@ -42,22 +61,9 @@ registerRoute(
   new NetworkFirst({ cacheName: `api-${SW_VERSION}` })
 );
 
-// オフラインフォールバック
-self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(`offline-${SW_VERSION}`).then((cache) => cache.add("/offline.html"))
-  );
-});
-
-// 古いキャッシュ削除
-self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((key) => !key.includes(SW_VERSION))
-          .map((key) => caches.delete(key))
-      )
-    )
-  );
+// 新しい SW をすぐ反映するためのメッセージ受信
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });
