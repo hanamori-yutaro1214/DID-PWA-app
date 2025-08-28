@@ -228,7 +228,7 @@ export default function App() {
         <nav className="bottom-nav">
           <Link to="/">ID発行</Link>
           <Link to="/display-id">ID表示</Link>
-          <Link to="/display-vc">VC表示</Link>
+          <Link to="/display-vc">VC一覧</Link>
           <Link to="/issue-vc">VC発行</Link>
           <Link to="/assign-vc">VC付与</Link>
         </nav>
