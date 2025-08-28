@@ -32,6 +32,14 @@ function getDidHistoryByEmail(email) {
   return historyByEmail[email] || [];
 }
 
+// ---- lastContext の管理 ----
+function setLastContext({ email, did }) {
+  localStorage.setItem("lastContext", JSON.stringify({ email, did }));
+}
+function getLastContext() {
+  return JSON.parse(localStorage.getItem("lastContext") || "{}");
+}
+
 // ================== ダミーVC生成 ==================
 const vcTemplates = [
   {
@@ -110,6 +118,9 @@ const IdIssueScreen = () => {
       // DID履歴保存
       saveDidHistory(email, issued);
 
+      // lastContext更新
+      setLastContext({ email, did: issued.did });
+
       navigate('/display-id', { state: { issued } });
     } catch (e) {
       alert(`発行に失敗: ${e.message}`);
@@ -155,6 +166,8 @@ const IdDisplayScreen = () => {
   React.useEffect(() => {
     if (issued?.email) {
       setHistory(getDidHistoryByEmail(issued.email));
+      // lastContext更新
+      setLastContext({ email: issued.email, did: issued.did });
     }
   }, [issued]);
 
@@ -201,8 +214,15 @@ const IdDisplayScreen = () => {
 
 const VcDisplayScreen = () => {
   const location = useLocation();
-  const email = location.state?.email;
-  const inputDid = location.state?.inputDid;
+  let { email, inputDid } = location.state || {};
+
+  // stateがなければlastContextを利用
+  if (!email && !inputDid) {
+    const ctx = getLastContext();
+    email = ctx.email;
+    inputDid = ctx.did;
+  }
+
   const [allVcs, setAllVcs] = React.useState([]);
 
   React.useEffect(() => {
