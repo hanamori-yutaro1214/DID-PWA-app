@@ -176,11 +176,22 @@ const IdDisplayScreen = () => {
       setErr(null);
       const d = await universalResolve(did.trim());
       setDoc(d);
+      // 入力したdidをlastContextに反映
+      const ctx = getLastContext();
+      setLastContext({ email: ctx.email, did });
     } catch (e) {
       setDoc(null);
       setErr(e.message);
     }
   };
+
+  // did入力時にもlastContextを更新
+  React.useEffect(() => {
+    if (did) {
+      const ctx = getLastContext();
+      setLastContext({ email: ctx.email, did });
+    }
+  }, [did]);
 
   return (
     <div>
@@ -225,18 +236,23 @@ const VcDisplayScreen = () => {
 
   const [allVcs, setAllVcs] = React.useState([]);
 
+  // lastContext更新時や入力did更新時に再取得
   React.useEffect(() => {
-    if (!email && !inputDid) return;
+    const ctx = getLastContext();
+    const currentDid = inputDid || ctx.did;
+    const currentEmail = email || ctx.email;
+
+    if (!currentDid && !currentEmail) return;
 
     const aggregated = [];
-    if (inputDid) {
-      const vcsForInput = getVcsByDid(inputDid);
-      vcsForInput.forEach(vc => aggregated.push({ did: inputDid, vc }));
+    if (currentDid) {
+      const vcsForInput = getVcsByDid(currentDid);
+      vcsForInput.forEach(vc => aggregated.push({ did: currentDid, vc }));
     }
-    if (email) {
-      const history = getDidHistoryByEmail(email);
+    if (currentEmail) {
+      const history = getDidHistoryByEmail(currentEmail);
       history.forEach(item => {
-        if (item.did !== inputDid) {
+        if (item.did !== currentDid) {
           const vcs = getVcsByDid(item.did);
           vcs.forEach(vc => aggregated.push({ did: item.did, vc }));
         }
