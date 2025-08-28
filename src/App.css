@@ -1,44 +1,38 @@
 .App {
   text-align: center;
-}
-
-.App-header {
-  background-color: #282c34;
-  min-height: 100px;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
+}
+
+/* アプリ上部（アプリ名表示） */
+.App-header {
+  background-color: #282c34;
+  height: 60px;
+  display: flex;
   align-items: center;
   justify-content: center;
-  font-size: calc(10px + 2vmin);
+  font-size: 20px;
+  font-weight: bold;
   color: white;
-  padding: 20px;
-  margin-bottom: 20px;
+  padding: 0 20px;
+  flex-shrink: 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1000;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
 }
 
-.App-header nav ul {
-  list-style: none;
-  padding: 0;
-  display: flex;
-  gap: 20px;
-}
-
-.App-header nav li a {
-  color: white;
-  text-decoration: none;
-  padding: 5px 10px;
-  border: 1px solid white;
-  border-radius: 5px;
-}
-
-.App-header nav li a:hover {
-  background-color: #61dafb;
-  color: #282c34;
-}
-
+/* メインコンテンツ（上と下に余白を確保） */
 main {
-  padding: 20px;
+  flex: 1;
+  padding: 80px 20px 80px; /* 上下に余白を確保 */
+  box-sizing: border-box;
 }
 
+/* JSON表示エリアなど */
 pre {
   background-color: #eee;
   padding: 15px;
@@ -47,7 +41,7 @@ pre {
   margin: 20px auto;
   max-width: 80%;
   overflow-x: auto;
-  white-space: pre-wrap;      /* 長いJSONも折り返す */
+  white-space: pre-wrap;
   word-break: break-word;
 }
 
@@ -56,6 +50,36 @@ pre {
 .did-list li {
   display: inline-block;
   max-width: 100%;
-  white-space: normal;       /* 折り返しを許可 */
-  word-break: break-all;     /* 英数字の途中でも折り返す */
+  white-space: normal;
+  word-break: break-all;
+}
+
+/* 下部ナビゲーション */
+.bottom-nav {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  background-color: #282c34;
+  color: white;
+  height: 60px;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1000;
+  box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.3);
+}
+
+.bottom-nav a {
+  flex: 1;
+  text-align: center;
+  color: white;
+  text-decoration: none;
+  padding: 10px 0;
+  font-size: 14px;
+}
+
+.bottom-nav a:hover {
+  background-color: #61dafb;
+  color: #282c34;
 }

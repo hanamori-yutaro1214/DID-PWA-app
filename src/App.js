@@ -9,19 +9,16 @@ import { universalResolve } from './services/resolver';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// VCの保存・取得関数
+// ================== LocalStorage ユーティリティ ==================
 function saveVcsForDid(did, vcs) {
   const allVcs = JSON.parse(localStorage.getItem("vcsByDid") || "{}");
   allVcs[did] = vcs;
   localStorage.setItem("vcsByDid", JSON.stringify(allVcs));
 }
-
 function getVcsByDid(did) {
   const allVcs = JSON.parse(localStorage.getItem("vcsByDid") || "{}");
   return allVcs[did] || [];
 }
-
-// DID履歴の保存・取得（メールごと）
 function saveDidHistory(email, issued) {
   const historyByEmail = JSON.parse(localStorage.getItem("didHistoryByEmail") || "{}");
   if (!historyByEmail[email]) {
@@ -30,13 +27,12 @@ function saveDidHistory(email, issued) {
   historyByEmail[email].push(issued);
   localStorage.setItem("didHistoryByEmail", JSON.stringify(historyByEmail));
 }
-
 function getDidHistoryByEmail(email) {
   const historyByEmail = JSON.parse(localStorage.getItem("didHistoryByEmail") || "{}");
   return historyByEmail[email] || [];
 }
 
-// ------------------ VCテンプレート定義 ------------------
+// ================== ダミーVC生成 ==================
 const vcTemplates = [
   {
     type: ["VerifiableCredential", "EmailCredential"],
@@ -54,12 +50,9 @@ const vcTemplates = [
     issuanceDate: "2023-03-01T00:00:00Z",
   },
 ];
-
-// ダミーVCを生成（汎用化）
 function generateDummyVcs(did, email) {
   const lastChar = did.slice(-1);
   const numVcs = parseInt(lastChar, 36) % vcTemplates.length + 1;
-
   return vcTemplates.slice(0, numVcs).map((tpl, idx) => ({
     id: `http://example.edu/credentials/${did}-${idx + 1}`,
     type: tpl.type,
@@ -69,7 +62,7 @@ function generateDummyVcs(did, email) {
   }));
 }
 
-// ------------------ Helper: DID折り返し表示 ------------------
+// ================== DID表示折り返し ==================
 function BreakableDid({ did, chunkSize = 25 }) {
   return (
     <>
@@ -82,7 +75,7 @@ function BreakableDid({ did, chunkSize = 25 }) {
   );
 }
 
-// ------------------ ID発行画面 ------------------
+// ================== 画面コンポーネント ==================
 const IdIssueScreen = () => {
   const [method, setMethod] = React.useState('key');
   const [email, setEmail] = React.useState('');
@@ -107,19 +100,14 @@ const IdIssueScreen = () => {
       return;
     }
     try {
-      let data;
-      if (method === 'key') {
-        data = issueDidKey();
-      } else {
-        data = issueDidEthr();
-      }
+      let data = method === 'key' ? issueDidKey() : issueDidEthr();
       const issued = { ...data, email };
 
       // VC保存
       const dummyVcs = generateDummyVcs(issued.did, email);
       saveVcsForDid(issued.did, dummyVcs);
 
-      // DID履歴保存（メールごと）
+      // DID履歴保存
       saveDidHistory(email, issued);
 
       navigate('/display-id', { state: { issued } });
@@ -156,10 +144,8 @@ const IdIssueScreen = () => {
   );
 };
 
-// ------------------ ID表示画面 ------------------
 const IdDisplayScreen = () => {
   const location = useLocation();
-  const navigate = useNavigate();
   const issued = location.state?.issued;
   const [did, setDid] = React.useState(issued?.did || '');
   const [doc, setDoc] = React.useState(null);
@@ -183,16 +169,10 @@ const IdDisplayScreen = () => {
     }
   };
 
-  const goVcDisplay = () => {
-    const targetEmail = issued?.email || ''; 
-    navigate('/display-vc', { state: { email: targetEmail, inputDid: did } });
-  };
-
   return (
     <div>
       <h2>DID表示</h2>
       {issued && <p>メールアドレス: {issued.email}</p>}
-      <p>DID Documentを解決して表示します。</p>
       <input
         value={did}
         onChange={e => setDid(e.target.value)}
@@ -209,22 +189,16 @@ const IdDisplayScreen = () => {
           発行されたDID: <BreakableDid did={issued.did} />
         </p>
       )}
-
       <h3>DID一覧（同じメールアドレスのみ）</h3>
       <ul>
         {history.map((item, idx) => (
           <li key={idx}><BreakableDid did={item.did} /></li>
         ))}
       </ul>
-
-      <div style={{ marginTop: '16px' }}>
-        <button onClick={goVcDisplay}>VC表示</button>
-      </div>
     </div>
   );
 };
 
-// ------------------ VC表示画面 ------------------
 const VcDisplayScreen = () => {
   const location = useLocation();
   const email = location.state?.email;
@@ -235,12 +209,10 @@ const VcDisplayScreen = () => {
     if (!email && !inputDid) return;
 
     const aggregated = [];
-
     if (inputDid) {
       const vcsForInput = getVcsByDid(inputDid);
       vcsForInput.forEach(vc => aggregated.push({ did: inputDid, vc }));
     }
-
     if (email) {
       const history = getDidHistoryByEmail(email);
       history.forEach(item => {
@@ -250,7 +222,6 @@ const VcDisplayScreen = () => {
         }
       });
     }
-
     setAllVcs(aggregated);
   }, [email, inputDid]);
 
@@ -261,13 +232,10 @@ const VcDisplayScreen = () => {
   return (
     <div>
       <h2>VC一覧</h2>
-      <p>入力されたDIDおよびメールアドレスに紐づくすべてのDIDのVCを表示します。</p>
       {allVcs.length === 0 && <p>VCは存在しません。</p>}
       {allVcs.map((item, idx) => (
         <div key={idx} style={{ border: '1px solid #ccc', padding: '8px', marginBottom: '12px' }}>
-          <p>
-            <strong>DID: <BreakableDid did={item.did} /></strong>
-          </p>
+          <p><strong>DID: <BreakableDid did={item.did} /></strong></p>
           <pre>{JSON.stringify(item.vc, null, 2)}</pre>
         </div>
       ))}
@@ -275,28 +243,38 @@ const VcDisplayScreen = () => {
   );
 };
 
-// ------------------ ルーティング ------------------
+// ダミー: VC発行画面
+const VcIssueScreen = () => <div><h2>VC発行（準備中）</h2></div>;
+// ダミー: VC付与画面
+const VcAssignScreen = () => <div><h2>VC付与（準備中）</h2></div>;
+
+// ================== ルーティング ==================
 export default function App() {
   return (
     <Router>
       <div className="App">
         <header className="App-header">
           <h1>DIDアプリ</h1>
-          <nav>
-            <ul>
-              <li><Link to="/">ID発行</Link></li>
-              <li><Link to="/display-id">ID表示</Link></li>
-              <li><Link to="/display-vc">VC表示</Link></li>
-            </ul>
-          </nav>
         </header>
+
         <main>
           <Routes>
             <Route path="/" element={<IdIssueScreen />} />
             <Route path="/display-id" element={<IdDisplayScreen />} />
             <Route path="/display-vc" element={<VcDisplayScreen />} />
+            <Route path="/issue-vc" element={<VcIssueScreen />} />
+            <Route path="/assign-vc" element={<VcAssignScreen />} />
           </Routes>
         </main>
+
+        {/* ボトムナビ */}
+        <nav className="bottom-nav">
+          <Link to="/">ID発行</Link>
+          <Link to="/display-id">ID表示</Link>
+          <Link to="/display-vc">VC表示</Link>
+          <Link to="/issue-vc">VC発行</Link>
+          <Link to="/assign-vc">VC付与</Link>
+        </nav>
       </div>
     </Router>
   );
