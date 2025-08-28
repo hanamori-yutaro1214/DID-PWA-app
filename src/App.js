@@ -21,9 +21,7 @@ function getVcsByDid(did) {
 }
 function saveDidHistory(email, issued) {
   const historyByEmail = JSON.parse(localStorage.getItem("didHistoryByEmail") || "{}");
-  if (!historyByEmail[email]) {
-    historyByEmail[email] = [];
-  }
+  if (!historyByEmail[email]) historyByEmail[email] = [];
   historyByEmail[email].push(issued);
   localStorage.setItem("didHistoryByEmail", JSON.stringify(historyByEmail));
 }
@@ -42,21 +40,9 @@ function getLastContext() {
 
 // ================== ダミーVC生成 ==================
 const vcTemplates = [
-  {
-    type: ["VerifiableCredential", "EmailCredential"],
-    subject: (did, email) => ({ id: did, email }),
-    issuanceDate: "2023-01-01T00:00:00Z",
-  },
-  {
-    type: ["VerifiableCredential", "ProfileCredential"],
-    subject: (did) => ({ id: did, name: `User ${did}` }),
-    issuanceDate: "2023-02-01T00:00:00Z",
-  },
-  {
-    type: ["VerifiableCredential", "MembershipCredential"],
-    subject: (did) => ({ id: did, membership: "Premium Plan" }),
-    issuanceDate: "2023-03-01T00:00:00Z",
-  },
+  { type: ["VerifiableCredential", "EmailCredential"], subject: (did, email) => ({ id: did, email }), issuanceDate: "2023-01-01T00:00:00Z" },
+  { type: ["VerifiableCredential", "ProfileCredential"], subject: (did) => ({ id: did, name: `User ${did}` }), issuanceDate: "2023-02-01T00:00:00Z" },
+  { type: ["VerifiableCredential", "MembershipCredential"], subject: (did) => ({ id: did, membership: "Premium Plan" }), issuanceDate: "2023-03-01T00:00:00Z" },
 ];
 function generateDummyVcs(did, email) {
   const lastChar = did.slice(-1);
@@ -75,9 +61,7 @@ function BreakableDid({ did, chunkSize = 25 }) {
   return (
     <>
       {did.match(new RegExp(`.{1,${chunkSize}}`, 'g')).map((chunk, i) => (
-        <React.Fragment key={i}>
-          {chunk}<br />
-        </React.Fragment>
+        <React.Fragment key={i}>{chunk}<br /></React.Fragment>
       ))}
     </>
   );
@@ -93,22 +77,15 @@ const IdIssueScreen = () => {
   const handleEmailChange = (e) => {
     const val = e.target.value;
     setEmail(val);
-    if (!val) {
-      setError('メールアドレスを入力してください');
-    } else if (!emailRegex.test(val)) {
-      setError('正しいメールアドレスを入力してください');
-    } else {
-      setError('');
-    }
+    if (!val) setError('メールアドレスを入力してください');
+    else if (!emailRegex.test(val)) setError('正しいメールアドレスを入力してください');
+    else setError('');
   };
 
   const handleIssue = async () => {
-    if (error || !email) {
-      alert('正しいメールアドレスを入力してください');
-      return;
-    }
+    if (error || !email) { alert('正しいメールアドレスを入力してください'); return; }
     try {
-      let data = method === 'key' ? issueDidKey() : issueDidEthr();
+      const data = method === 'key' ? issueDidKey() : issueDidEthr();
       const issued = { ...data, email };
 
       // VC保存
@@ -132,13 +109,7 @@ const IdIssueScreen = () => {
       <h2>DID発行</h2>
       <div style={{ marginBottom: 12 }}>
         <label>メールアドレス: </label>
-        <input
-          type="email"
-          value={email}
-          onChange={handleEmailChange}
-          placeholder="example@domain.com"
-          style={{ width: '238px' }}
-        />
+        <input type="email" value={email} onChange={handleEmailChange} placeholder="example@domain.com" style={{ width: '238px' }} />
         {error && <p style={{ color: 'red' }}>{error}</p>}
       </div>
       <div style={{ marginBottom: 12 }}>
@@ -148,9 +119,7 @@ const IdIssueScreen = () => {
           <option value="ethr">did:ethr (sepolia)</option>
         </select>
       </div>
-      <button onClick={handleIssue} disabled={!!error || !email}>
-        DIDを発行する
-      </button>
+      <button onClick={handleIssue} disabled={!!error || !email}>DIDを発行する</button>
     </div>
   );
 };
@@ -166,7 +135,6 @@ const IdDisplayScreen = () => {
   React.useEffect(() => {
     if (issued?.email) {
       setHistory(getDidHistoryByEmail(issued.email));
-      // lastContext更新
       setLastContext({ email: issued.email, did: issued.did });
     }
   }, [issued]);
@@ -176,7 +144,6 @@ const IdDisplayScreen = () => {
       setErr(null);
       const d = await universalResolve(did.trim());
       setDoc(d);
-      // 入力したdidをlastContextに反映
       const ctx = getLastContext();
       setLastContext({ email: ctx.email, did });
     } catch (e) {
@@ -185,7 +152,6 @@ const IdDisplayScreen = () => {
     }
   };
 
-  // did入力時にもlastContextを更新
   React.useEffect(() => {
     if (did) {
       const ctx = getLastContext();
@@ -197,73 +163,33 @@ const IdDisplayScreen = () => {
     <div>
       <h2>DID表示</h2>
       {issued && <p>メールアドレス: {issued.email}</p>}
-      <input
-        value={did}
-        onChange={e => setDid(e.target.value)}
-        placeholder="did:key:... もしくは did:ethr:..."
-        style={{ width: '60%' }}
-      />
-      <div>
-        <button onClick={handleResolve}>DIDのドキュメントを表示</button>
-      </div>
+      <input value={did} onChange={e => setDid(e.target.value)} placeholder="did:key:... もしくは did:ethr:..." style={{ width: '60%' }} />
+      <div><button onClick={handleResolve}>DIDのドキュメントを表示</button></div>
       {doc && <pre>{JSON.stringify(doc, null, 2)}</pre>}
       {err && <p style={{ color: 'red' }}>エラー: {err}</p>}
-      {issued && (
-        <p>
-          発行されたDID: <BreakableDid did={issued.did} />
-        </p>
-      )}
+      {issued && <p>発行されたDID: <BreakableDid did={issued.did} /></p>}
       <h3>DID一覧（同じメールアドレスのみ）</h3>
-      <ul>
-        {history.map((item, idx) => (
-          <li key={idx}><BreakableDid did={item.did} /></li>
-        ))}
-      </ul>
+      <ul>{history.map((item, idx) => <li key={idx}><BreakableDid did={item.did} /></li>)}</ul>
     </div>
   );
 };
 
 const VcDisplayScreen = () => {
   const location = useLocation();
-  let { email, inputDid } = location.state || {};
-
-  // stateがなければlastContextを利用
-  if (!email && !inputDid) {
-    const ctx = getLastContext();
-    email = ctx.email;
-    inputDid = ctx.did;
-  }
+  let { inputDid } = location.state || {};
+  const ctx = getLastContext();
+  const currentDid = inputDid || ctx.did;
 
   const [allVcs, setAllVcs] = React.useState([]);
 
-  // lastContext更新時や入力did更新時に再取得
   React.useEffect(() => {
-    const ctx = getLastContext();
-    const currentDid = inputDid || ctx.did;
-    const currentEmail = email || ctx.email;
+    if (!currentDid) return;
+    // 修正: DID入力がある場合はそれのみを表示
+    const vcsForDid = getVcsByDid(currentDid);
+    setAllVcs(vcsForDid.map(vc => ({ did: currentDid, vc })));
+  }, [currentDid]);
 
-    if (!currentDid && !currentEmail) return;
-
-    const aggregated = [];
-    if (currentDid) {
-      const vcsForInput = getVcsByDid(currentDid);
-      vcsForInput.forEach(vc => aggregated.push({ did: currentDid, vc }));
-    }
-    if (currentEmail) {
-      const history = getDidHistoryByEmail(currentEmail);
-      history.forEach(item => {
-        if (item.did !== currentDid) {
-          const vcs = getVcsByDid(item.did);
-          vcs.forEach(vc => aggregated.push({ did: item.did, vc }));
-        }
-      });
-    }
-    setAllVcs(aggregated);
-  }, [email, inputDid]);
-
-  if (!email && !inputDid) {
-    return <p>対象のDIDまたはメールアドレスが指定されていません。</p>;
-  }
+  if (!currentDid) return <p>対象のDIDが指定されていません。</p>;
 
   return (
     <div>
@@ -289,10 +215,7 @@ export default function App() {
   return (
     <Router>
       <div className="App">
-        <header className="App-header">
-          <h1>DIDアプリ</h1>
-        </header>
-
+        <header className="App-header"><h1>DIDアプリ</h1></header>
         <main>
           <Routes>
             <Route path="/" element={<IdIssueScreen />} />
@@ -302,8 +225,6 @@ export default function App() {
             <Route path="/assign-vc" element={<VcAssignScreen />} />
           </Routes>
         </main>
-
-        {/* ボトムナビ */}
         <nav className="bottom-nav">
           <Link to="/">ID発行</Link>
           <Link to="/display-id">ID表示</Link>
