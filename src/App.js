@@ -169,11 +169,9 @@ const IdDisplayScreen = () => {
   const [did,setDid] = React.useState(issued?.did||'');
   const [doc,setDoc] = React.useState(null);
   const [err,setErr] = React.useState(null);
-  const [history,setHistory] = React.useState([]);
 
   React.useEffect(()=>{
     if(issued?.email){
-      setHistory(getDidHistoryByEmail(issued.email));
       setLastContext({email:issued.email,did:issued.did});
       // mark that this DID was recently set by ID画面 (transient flag)
       if (issued.did) sessionStorage.setItem('vcContextValid', 'true');
@@ -208,16 +206,10 @@ const IdDisplayScreen = () => {
       <input value={did} onChange={(e)=>setDid(e.target.value)} placeholder="did:key:... もしくは did:ethr:..." style={{width:'60%'}}/>
       <div style={{marginTop:8, marginBottom:8}}>
         <button onClick={handleResolve} style={{marginRight:8}}>DIDのドキュメントを表示</button>
-        {/* 便利ボタン：ID表示から直接 VC 表示 に遷移する（state を渡す） */}
-        <Link to="/display-vc" state={{ inputDid: did }}>
-          <button disabled={!did}>VC表示（このDIDで表示）</button>
-        </Link>
       </div>
       {doc && <pre>{JSON.stringify(doc,null,2)}</pre>}
       {err && <p style={{color:'red'}}>エラー: {err}</p>}
       {issued && <p>発行されたDID: <BreakableDid did={issued.did}/></p>}
-      <h3>DID一覧（同じメールアドレスのみ）</h3>
-      <ul>{history.map((item,idx)=><li key={idx}><BreakableDid did={item.did}/></li>)}</ul>
     </div>
   );
 };
@@ -246,14 +238,8 @@ const VcDisplayScreen = () => {
   const [allVcs,setAllVcs] = React.useState([]);
 
   React.useEffect(() => {
-    // If we consumed session flag (i.e. inputDid not exist in state but we used the transient),
-    // make sure to remove the transient flag so later navigations won't reuse it.
-    if (!inputDid) {
-      sessionStorage.removeItem('vcContextValid');
-    } else {
-      // if navigation provided inputDid via state, also remove transient to avoid reuse
-      sessionStorage.removeItem('vcContextValid');
-    }
+    // consume transient flag so later navigations won't reuse it.
+    sessionStorage.removeItem('vcContextValid');
 
     if (!currentDid) {
       setAllVcs([]);
