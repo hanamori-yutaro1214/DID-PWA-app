@@ -18,8 +18,8 @@ import { universalResolve } from './services/resolver';
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // ================== 設定（簡易管理者） ==================
-const ADMIN_PASSWORD = 'admin1234';
-const ADMIN_ISSUER_DID = 'did:example:caica-admin';
+const ADMIN_PASSWORD = 'caica1214';
+const ADMIN_ISSUER_DID = 'CAICAテクノロジーズ';
 
 // ================== LocalStorage ユーティリティ ==================
 function saveVcsForDid(did, vcs) {
