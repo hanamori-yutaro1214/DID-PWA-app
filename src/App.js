@@ -119,9 +119,10 @@ function fileToDataUrl(file){
 // ================== DID表示折り返し ==================
 function BreakableDid({ did, chunkSize = 25 }) {
   if (!did) return null;
+  const chunks = did.match(new RegExp(`.{1,${chunkSize}}`, 'g')) || [did];
   return (
     <>
-      {did.match(new RegExp(`.{1,${chunkSize}}`, 'g')).map((chunk,i)=>(
+      {chunks.map((chunk,i)=>(
         <React.Fragment key={i}>{chunk}<br/></React.Fragment>
       ))}
     </>
@@ -230,7 +231,8 @@ const VcDisplayScreen = () => {
   React.useEffect(()=>{
     if(!currentDid) return;
     const vcsForDid = getVcsByDid(currentDid);
-    setAllVcs(vcsForDid.map(vc=>({did:currentDid,vc})));
+    // ensure array
+    setAllVcs((vcsForDid || []).map(vc => ({ did: currentDid, vc })));
   },[currentDid]);
 
   if(!currentDid) return <p>対象のDIDが指定されていません。</p>;
@@ -239,12 +241,45 @@ const VcDisplayScreen = () => {
     <div>
       <h2>VC一覧</h2>
       {allVcs.length===0 && <p>VCは存在しません。</p>}
-      {allVcs.map((item,idx)=>(
-        <div key={idx} style={{border:'1px solid #ccc',padding:'8px',marginBottom:'12px'}}>
-          <p><strong>DID: <BreakableDid did={item.did}/></strong></p>
-          <pre>{JSON.stringify(item.vc,null,2)}</pre>
-        </div>
-      ))}
+      {allVcs.map((item,idx)=> {
+        const vc = item.vc || {};
+        const subj = vc.credentialSubject || {};
+        const title = subj.title || subj.name || "無題の認定証";
+        const logo = subj.logo || null;
+        let issuance = vc.issuanceDate || vc.issued || vc.issuance || null;
+        let issuanceStr = issuance ? (isNaN(new Date(issuance)) ? issuance : new Date(issuance).toLocaleString()) : "不明";
+        return (
+          <div key={idx} style={{border:'1px solid #ccc',padding:'12px',marginBottom:'16px',borderRadius:8,display:'flex',gap:12,alignItems:'flex-start'}}>
+            {/* 左：ロゴ（ある場合） */}
+            {logo ? (
+              <div style={{flex:'0 0 120px'}}>
+                <img src={logo} alt={`logo-${idx}`} style={{maxWidth:120,maxHeight:120,objectFit:'contain',border:'1px solid #eee',padding:6,background:'#fff'}}/>
+              </div>
+            ) : (
+              <div style={{flex:'0 0 120px',display:'flex',alignItems:'center',justifyContent:'center',background:'#f5f5f5',height:120,borderRadius:6}}>
+                <small>ロゴなし</small>
+              </div>
+            )}
+
+            {/* 右：情報 */}
+            <div style={{flex:1}}>
+              <h3 style={{margin:'4px 0'}}>{title}</h3>
+              <p style={{margin:'6px 0'}}><strong>発行者:</strong> {vc.issuer || '不明'}</p>
+              <p style={{margin:'6px 0'}}><strong>発行日:</strong> {issuanceStr}</p>
+              <p style={{margin:'6px 0'}}><strong>DID:</strong> <BreakableDid did={item.did}/></p>
+
+              {/* 追加メタ情報があれば表示 */}
+              {subj.awardedBy && <p style={{margin:'6px 0'}}><strong>授与元:</strong> {subj.awardedBy}</p>}
+
+              {/* 詳細JSON（必要な場合に展開） */}
+              <details style={{marginTop:8}}>
+                <summary>詳細データ（JSON）を表示</summary>
+                <pre style={{fontSize:'0.8em',background:'#f9f9f9',padding:8,overflowX:'auto'}}>{JSON.stringify(vc,null,2)}</pre>
+              </details>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 };
