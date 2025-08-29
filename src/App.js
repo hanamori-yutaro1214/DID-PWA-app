@@ -88,24 +88,6 @@ function deleteVcTemplate(id) {
   localStorage.setItem('vcTemplates', JSON.stringify(arr));
 }
 
-// ================== ダミーVC生成 ==================
-const vcTemplatesDummy = [
-  { type: ['VerifiableCredential','EmailCredential'], subject: (did,email)=>({id:did,email}), issuanceDate:'2023-01-01T00:00:00Z' },
-  { type: ['VerifiableCredential','ProfileCredential'], subject: (did)=>({id:did,name:`User ${did}`}), issuanceDate:'2023-02-01T00:00:00Z' },
-  { type: ['VerifiableCredential','MembershipCredential'], subject: (did)=>({id:did,membership:'Premium Plan'}), issuanceDate:'2023-03-01T00:00:00Z' }
-];
-function generateDummyVcs(did,email){
-  const lastChar = did.slice(-1);
-  const numVcs = parseInt(lastChar,36) % vcTemplatesDummy.length +1;
-  return vcTemplatesDummy.slice(0,numVcs).map((tpl,idx)=>({
-    id:`http://example.edu/credentials/${did}-${idx+1}`,
-    type: tpl.type,
-    credentialSubject: tpl.subject(did,email),
-    issuer: did,
-    issuanceDate: tpl.issuanceDate
-  }));
-}
-
 // ================== ユーティリティ ==================
 function fileToDataUrl(file){
   return new Promise((resolve,reject)=>{
@@ -149,10 +131,14 @@ const IdIssueScreen = () => {
     try{
       const data = method==='key'? issueDidKey():issueDidEthr();
       const issued = {...data,email};
-      const dummyVcs = generateDummyVcs(issued.did,email);
-      saveVcsForDid(issued.did,dummyVcs);
+
+      // --- ダミーVCの自動保存は削除しました ---
+      // DID履歴保存
       saveDidHistory(email,issued);
+
+      // lastContext更新
       setLastContext({email,did:issued.did});
+
       navigate('/display-id',{state:{issued}});
     }catch(e){ alert(`発行に失敗: ${e.message}`); }
   };
