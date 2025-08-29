@@ -175,8 +175,19 @@ const IdDisplayScreen = () => {
     if(issued?.email){
       setHistory(getDidHistoryByEmail(issued.email));
       setLastContext({email:issued.email,did:issued.did});
+      // mark that this DID was recently set by ID画面 (transient flag)
+      if (issued.did) sessionStorage.setItem('vcContextValid', 'true');
     }
   },[issued]);
+
+  // whenever the did input changes, update lastContext and transient flag
+  React.useEffect(()=>{
+    if(did){
+      const ctx = getLastContext();
+      setLastContext({email:ctx.email || '', did});
+      sessionStorage.setItem('vcContextValid', 'true'); // allow next VC view to use this DID
+    }
+  },[did]);
 
   const handleResolve = async()=>{
     try{
@@ -185,19 +196,23 @@ const IdDisplayScreen = () => {
       setDoc(d);
       const ctx = getLastContext();
       setLastContext({email:ctx.email,did});
+      // ensure transient flag is set (so VC display can use it)
+      if (did) sessionStorage.setItem('vcContextValid', 'true');
     }catch(e){ setDoc(null); setErr(e.message);}
   };
-
-  React.useEffect(()=>{
-    if(did){ const ctx = getLastContext(); setLastContext({email:ctx.email,did}); }
-  },[did]);
 
   return (
     <div>
       <h2>DID表示</h2>
       {issued && <p>メールアドレス: {issued.email}</p>}
       <input value={did} onChange={(e)=>setDid(e.target.value)} placeholder="did:key:... もしくは did:ethr:..." style={{width:'60%'}}/>
-      <div><button onClick={handleResolve}>DIDのドキュメントを表示</button></div>
+      <div style={{marginTop:8, marginBottom:8}}>
+        <button onClick={handleResolve} style={{marginRight:8}}>DIDのドキュメントを表示</button>
+        {/* 便利ボタン：ID表示から直接 VC 表示 に遷移する（state を渡す） */}
+        <Link to="/display-vc" state={{ inputDid: did }}>
+          <button disabled={!did}>VC表示（このDIDで表示）</button>
+        </Link>
+      </div>
       {doc && <pre>{JSON.stringify(doc,null,2)}</pre>}
       {err && <p style={{color:'red'}}>エラー: {err}</p>}
       {issued && <p>発行されたDID: <BreakableDid did={issued.did}/></p>}
@@ -211,17 +226,48 @@ const VcDisplayScreen = () => {
   const location = useLocation();
   let { inputDid } = location.state || {};
   const ctx = getLastContext();
-  const currentDid = inputDid || ctx.did;
+  // Decision rule:
+  // - If location.state.inputDid is provided => use it
+  // - else if sessionStorage.vcContextValid === 'true' => use lastContext.did (and then consume flag)
+  // - else => do NOT use lastContext, and show message telling user to input DID in ID表示画面
+  const [currentDid, setCurrentDid] = React.useState(() => {
+    if (inputDid) return inputDid;
+    try {
+      if (sessionStorage.getItem('vcContextValid') === 'true') {
+        const lc = getLastContext();
+        return lc.did || '';
+      }
+    } catch (e) {
+      // ignore
+    }
+    return '';
+  });
+
   const [allVcs,setAllVcs] = React.useState([]);
 
-  React.useEffect(()=>{
-    if(!currentDid) return;
-    const vcsForDid = getVcsByDid(currentDid);
-    // ensure array
-    setAllVcs((vcsForDid || []).map(vc => ({ did: currentDid, vc })));
-  },[currentDid]);
+  React.useEffect(() => {
+    // If we consumed session flag (i.e. inputDid not exist in state but we used the transient),
+    // make sure to remove the transient flag so later navigations won't reuse it.
+    if (!inputDid) {
+      sessionStorage.removeItem('vcContextValid');
+    } else {
+      // if navigation provided inputDid via state, also remove transient to avoid reuse
+      sessionStorage.removeItem('vcContextValid');
+    }
 
-  if(!currentDid) return <p>対象のDIDが指定されていません。</p>;
+    if (!currentDid) {
+      setAllVcs([]);
+      return;
+    }
+    const vcsForDid = getVcsByDid(currentDid);
+    setAllVcs((vcsForDid || []).map(vc => ({ did: currentDid, vc })));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentDid, inputDid]);
+
+  // If currentDid is empty, show instruction message
+  if (!currentDid) {
+    return <p>VCは存在しません。ID表示画面で did:key を入力してから VC 表示してください。</p>;
+  }
 
   return (
     <div>
@@ -354,11 +400,7 @@ const VcAssignScreen = () => {
     alert('VCを付与しました');
   };
 
-  const addManualDid = ()=>{
-    if(!manualDid) return;
-    if(!didList.some(x=>x.did===manualDid)) setDidList([{email:'(手入力)',did:manualDid},...didList]);
-    setSelectedDid(manualDid); setManualDid('');
-  };
+  const addManualDid = ()=>{ if(!manualDid) return; if(!didList.some(x=>x.did===manualDid)) setDidList([{email:'(手入力)',did:manualDid},...didList]); setSelectedDid(manualDid); setManualDid(''); };
 
   return (
     <div>
@@ -394,9 +436,7 @@ const AdminRoute = ({ element })=> isAdmin()? element : <Navigate to="/admin-log
 // ================== ルーティング ==================
 export default function App(){
   const [admin,setAdmin] = React.useState(isAdmin());
-  const handleLogout = ()=>{
-    setAdminLoggedIn(false); setAdmin(false); alert('管理者をログアウトしました');
-  };
+  const handleLogout = ()=>{ setAdminLoggedIn(false); setAdmin(false); alert('管理者をログアウトしました'); };
   React.useEffect(()=>{
     const handler = ()=>setAdmin(isAdmin());
     window.addEventListener('storage',handler);
