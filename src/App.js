@@ -1,4 +1,4 @@
-// src/App.js
+// src/App.js　ローカルストレージ
 import React from 'react';
 import {
   BrowserRouter as Router,
@@ -205,7 +205,7 @@ const IdDisplayScreen = () => {
       {issued && <p>メールアドレス: {issued.email}</p>}
       <input value={did} onChange={(e)=>setDid(e.target.value)} placeholder="did:key:... もしくは did:ethr:..." style={{width:'60%'}}/>
       <div style={{marginTop:8, marginBottom:8}}>
-        <button onClick={handleResolve} style={{marginRight:8}}>DIDのドキュメントを表示</button>
+        <button onClick={handleResolve} style={{marginRight:8}}>DIDドキュメントを表示</button>
       </div>
       {doc && <pre>{JSON.stringify(doc,null,2)}</pre>}
       {err && <p style={{color:'red'}}>エラー: {err}</p>}
