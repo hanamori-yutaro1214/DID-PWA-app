@@ -1,4 +1,4 @@
-// src/App.js　ローカルストレージ
+// src/App.js
 import React from 'react';
 import {
   BrowserRouter as Router,
@@ -15,38 +15,47 @@ import { issueDidKey } from './services/didKey';
 import { issueDidEthr } from './services/didEthr';
 import { universalResolve } from './services/resolver';
 
+// Firestore helpers (your cloud.js)
+import {
+  saveDid as cloudSaveDid,
+  saveDidHistory as cloudSaveDidHistory,
+  getAllUsers as cloudGetAllUsers,
+  getVcsByDid as cloudGetVcsByDid,
+  appendVcForDid as cloudAppendVcForDid
+} from './services/cloud';
+
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // ================== 設定（簡易管理者） ==================
 const ADMIN_PASSWORD = 'caica1214';
 const ADMIN_ISSUER_DID = 'CAICAテクノロジーズ';
 
-// ================== LocalStorage ユーティリティ ==================
-function saveVcsForDid(did, vcs) {
+// ================== LocalStorage ユーティリティ（既存を残す） ==================
+function saveVcsForDidLocal(did, vcs) {
   const allVcs = JSON.parse(localStorage.getItem('vcsByDid') || '{}');
   allVcs[did] = vcs;
   localStorage.setItem('vcsByDid', JSON.stringify(allVcs));
 }
-function getVcsByDid(did) {
+function getVcsByDidLocal(did) {
   const allVcs = JSON.parse(localStorage.getItem('vcsByDid') || '{}');
   return allVcs[did] || [];
 }
-function appendVcForDid(did, vc) {
-  const cur = getVcsByDid(did);
+function appendVcForDidLocal(did, vc) {
+  const cur = getVcsByDidLocal(did);
   cur.push(vc);
-  saveVcsForDid(did, cur);
+  saveVcsForDidLocal(did, cur);
 }
-function saveDidHistory(email, issued) {
+function saveDidHistoryLocal(email, issued) {
   const historyByEmail = JSON.parse(localStorage.getItem('didHistoryByEmail') || '{}');
   if (!historyByEmail[email]) historyByEmail[email] = [];
   historyByEmail[email].push(issued);
   localStorage.setItem('didHistoryByEmail', JSON.stringify(historyByEmail));
 }
-function getDidHistoryByEmail(email) {
+function getDidHistoryByEmailLocal(email) {
   const historyByEmail = JSON.parse(localStorage.getItem('didHistoryByEmail') || '{}');
   return historyByEmail[email] || [];
 }
-function getAllDidsFromHistory() {
+function getAllDidsFromHistoryLocal() {
   const historyByEmail = JSON.parse(localStorage.getItem('didHistoryByEmail') || '{}');
   const list = [];
   Object.entries(historyByEmail).forEach(([email, arr]) => {
@@ -58,7 +67,7 @@ function getAllDidsFromHistory() {
   return list.filter((x) => (seen.has(x.did) ? false : (seen.add(x.did), true)));
 }
 
-// ---- lastContext の管理 ----
+// ---- lastContext の管理 (localStorage を継続利用) ----
 function setLastContext({ email, did }) {
   localStorage.setItem('lastContext', JSON.stringify({ email, did }));
 }
@@ -66,7 +75,7 @@ function getLastContext() {
   return JSON.parse(localStorage.getItem('lastContext') || '{}');
 }
 
-// ---- 管理者ログイン状態 ----
+// ---- 管理者ログイン状態 (localStorage 継続利用) ----
 function setAdminLoggedIn(flag) {
   localStorage.setItem('isAdmin', flag ? 'true' : 'false');
 }
@@ -74,7 +83,7 @@ function isAdmin() {
   return localStorage.getItem('isAdmin') === 'true';
 }
 
-// ---- VCテンプレート保存 ----
+// ---- VCテンプレート保存 (ローカルストレージに残す) ----
 function saveVcTemplate(tpl) {
   const arr = JSON.parse(localStorage.getItem('vcTemplates') || '[]');
   arr.push(tpl);
@@ -104,14 +113,71 @@ function BreakableDid({ did, chunkSize = 25 }) {
   const chunks = did.match(new RegExp(`.{1,${chunkSize}}`, 'g')) || [did];
   return (
     <>
-      {chunks.map((chunk,i)=>(
-        <React.Fragment key={i}>{chunk}<br/></React.Fragment>
-      ))}
+      {chunks.map((chunk,i)=>(<React.Fragment key={i}>{chunk}<br/></React.Fragment>))}
     </>
   );
 }
 
-// ================== 画面コンポーネント ==================
+// ================== Firestore <-> Local wrappers ==================
+
+// getAllDidsFromHistory：まず Firestore から全ユーザー情報を取って dids を集める。
+// 失敗したらローカルにフォールバック。
+async function getAllDidsFromHistoryMerged() {
+  try {
+    const users = await cloudGetAllUsers(); // [{ email, did, didHistory? }]
+    const list = [];
+    users.forEach(u => {
+      if (u.didHistory && Array.isArray(u.didHistory)) {
+        (u.didHistory || []).forEach((issued) => {
+          const didVal = typeof issued === 'string' ? issued : (issued.did || '');
+          if (didVal) list.push({ email: u.email, did: didVal, method: issued?.method || '' });
+        });
+      }
+      if (u.did) {
+        const didVal = typeof u.did === 'string' ? u.did : (u.did.did || '');
+        if (didVal) list.push({ email: u.email, did: didVal, method: '' });
+      }
+    });
+    // 追加でローカルの履歴（あなたの端末固有発行）も含める（重複を避ける）
+    const local = getAllDidsFromHistoryLocal();
+    local.forEach(x => list.push(x));
+    const seen = new Set();
+    return list.filter(x => (seen.has(x.did) ? false : (seen.add(x.did), true)));
+  } catch (e) {
+    console.warn('getAllDidsFromHistoryMerged: cloud fetch failed, falling back to local', e);
+    return getAllDidsFromHistoryLocal();
+  }
+}
+
+// getVcsByDid: try cloud first, fallback to local
+async function getVcsByDidMerged(did) {
+  try {
+    const vcs = await cloudGetVcsByDid(did);
+    if (Array.isArray(vcs) && vcs.length > 0) return vcs;
+    // if cloud returns empty, still try local
+    const local = getVcsByDidLocal(did);
+    return local || [];
+  } catch (e) {
+    console.warn('getVcsByDidMerged: cloud fetch failed, falling back to local', e);
+    return getVcsByDidLocal(did);
+  }
+}
+
+// appendVcForDid: try cloud append; if fail, append local
+async function appendVcForDidMerged(did, vc) {
+  try {
+    await cloudAppendVcForDid(did, vc);
+    // also keep a local copy so local UI (offline) still works
+    appendVcForDidLocal(did, vc);
+  } catch (e) {
+    console.warn('appendVcForDidMerged: cloud append failed, appending to local only', e);
+    appendVcForDidLocal(did, vc);
+    throw e; // rethrow so caller can show "failed" if desired
+  }
+}
+
+// ---------- 以下 UI コンポーネント ----------
+
 const IdIssueScreen = () => {
   const [method,setMethod] = React.useState('key');
   const [email,setEmail] = React.useState('');
@@ -132,15 +198,24 @@ const IdIssueScreen = () => {
       const data = method==='key'? issueDidKey():issueDidEthr();
       const issued = {...data,email};
 
-      // --- ダミーVCの自動保存は削除しました ---
-      // DID履歴保存
-      saveDidHistory(email,issued);
+      // --- ローカルに履歴保存（既存の動作維持） ---
+      try { saveDidHistoryLocal(email, issued); } catch(e){ console.warn('local saveDidHistory failed', e); }
 
-      // lastContext更新
+      // --- Firestore にも保存（非同期） ---
+      try {
+        // save latest DID
+        await cloudSaveDid(email, issued.did || issued);
+        // append to didHistory in Firestore (重複チェックは cloud.js の実装に依存)
+        await cloudSaveDidHistory(email, issued);
+      } catch (e) {
+        console.warn('cloud saveDid/saveDidHistory failed', e);
+      }
+
+      // lastContext 更新
       setLastContext({email,did:issued.did});
 
       navigate('/display-id',{state:{issued}});
-    }catch(e){ alert(`発行に失敗: ${e.message}`); }
+    }catch(e){ alert(`発行に失敗: ${e.message || e}`); }
   };
 
   return (
@@ -178,7 +253,6 @@ const IdDisplayScreen = () => {
     }
   },[issued]);
 
-  // whenever the did input changes, update lastContext and transient flag
   React.useEffect(()=>{
     if(did){
       const ctx = getLastContext();
@@ -194,9 +268,8 @@ const IdDisplayScreen = () => {
       setDoc(d);
       const ctx = getLastContext();
       setLastContext({email:ctx.email,did});
-      // ensure transient flag is set (so VC display can use it)
       if (did) sessionStorage.setItem('vcContextValid', 'true');
-    }catch(e){ setDoc(null); setErr(e.message);}
+    }catch(e){ setDoc(null); setErr(e.message || e); }
   };
 
   return (
@@ -217,11 +290,6 @@ const IdDisplayScreen = () => {
 const VcDisplayScreen = () => {
   const location = useLocation();
   let { inputDid } = location.state || {};
-  const ctx = getLastContext();
-  // Decision rule:
-  // - If location.state.inputDid is provided => use it
-  // - else if sessionStorage.vcContextValid === 'true' => use lastContext.did (and then consume flag)
-  // - else => do NOT use lastContext, and show message telling user to input DID in ID表示画面
   const [currentDid, setCurrentDid] = React.useState(() => {
     if (inputDid) return inputDid;
     try {
@@ -229,28 +297,50 @@ const VcDisplayScreen = () => {
         const lc = getLastContext();
         return lc.did || '';
       }
-    } catch (e) {
-      // ignore
-    }
+    } catch (e) { /* ignore */ }
     return '';
   });
 
   const [allVcs,setAllVcs] = React.useState([]);
+  const [loading, setLoading] = React.useState(false);
+  const [err, setErr] = React.useState(null);
 
   React.useEffect(() => {
-    // consume transient flag so later navigations won't reuse it.
     sessionStorage.removeItem('vcContextValid');
 
-    if (!currentDid) {
-      setAllVcs([]);
-      return;
-    }
-    const vcsForDid = getVcsByDid(currentDid);
-    setAllVcs((vcsForDid || []).map(vc => ({ did: currentDid, vc })));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    const fetchVcs = async () => {
+      if (!currentDid) {
+        setAllVcs([]);
+        return;
+      }
+      setLoading(true);
+      setErr(null);
+      try {
+        // Try cloud first, fallback to local
+        let vcs = [];
+        try {
+          vcs = await cloudGetVcsByDid(currentDid);
+        } catch (e) {
+          console.warn('cloudGetVcsByDid failed, falling back to local', e);
+          vcs = getVcsByDidLocal(currentDid);
+        }
+        // If cloud returned null/empty, also try local
+        if ((!vcs || vcs.length === 0)) {
+          const local = getVcsByDidLocal(currentDid);
+          if (local && local.length > 0) vcs = local;
+        }
+        setAllVcs((vcs || []).map(vc => ({ did: currentDid, vc })));
+      } catch (e) {
+        console.error('getVcsByDid error', e);
+        setErr('VC取得に失敗しました');
+        setAllVcs([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchVcs();
   }, [currentDid, inputDid]);
 
-  // If currentDid is empty, show instruction message
   if (!currentDid) {
     return <p>VCは存在しません。ID表示画面で did:key を入力してから VC 表示してください。</p>;
   }
@@ -258,7 +348,9 @@ const VcDisplayScreen = () => {
   return (
     <div>
       <h2>VC一覧</h2>
-      {allVcs.length===0 && <p>VCは存在しません。</p>}
+      {loading && <p>読み込み中...</p>}
+      {!loading && allVcs.length===0 && <p>VCは存在しません。</p>}
+      {err && <p style={{color:'red'}}>{err}</p>}
       {allVcs.map((item,idx)=> {
         const vc = item.vc || {};
         const subj = vc.credentialSubject || {};
@@ -268,7 +360,6 @@ const VcDisplayScreen = () => {
         let issuanceStr = issuance ? (isNaN(new Date(issuance)) ? issuance : new Date(issuance).toLocaleString()) : "不明";
         return (
           <div key={idx} style={{border:'1px solid #ccc',padding:'12px',marginBottom:'16px',borderRadius:8,display:'flex',gap:12,alignItems:'flex-start'}}>
-            {/* 左：ロゴ（ある場合） */}
             {logo ? (
               <div style={{flex:'0 0 120px'}}>
                 <img src={logo} alt={`logo-${idx}`} style={{maxWidth:120,maxHeight:120,objectFit:'contain',border:'1px solid #eee',padding:6,background:'#fff'}}/>
@@ -278,18 +369,12 @@ const VcDisplayScreen = () => {
                 <small>ロゴなし</small>
               </div>
             )}
-
-            {/* 右：情報 */}
             <div style={{flex:1}}>
               <h3 style={{margin:'4px 0'}}>{title}</h3>
               <p style={{margin:'6px 0'}}><strong>発行者:</strong> {vc.issuer || '不明'}</p>
               <p style={{margin:'6px 0'}}><strong>発行日:</strong> {issuanceStr}</p>
               <p style={{margin:'6px 0'}}><strong>DID:</strong> <BreakableDid did={item.did}/></p>
-
-              {/* 追加メタ情報があれば表示 */}
               {subj.awardedBy && <p style={{margin:'6px 0'}}><strong>授与元:</strong> {subj.awardedBy}</p>}
-
-              {/* 詳細JSON（必要な場合に展開） */}
               <details style={{marginTop:8}}>
                 <summary>詳細データ（JSON）を表示</summary>
                 <pre style={{fontSize:'0.8em',background:'#f9f9f9',padding:8,overflowX:'auto'}}>{JSON.stringify(vc,null,2)}</pre>
@@ -302,7 +387,6 @@ const VcDisplayScreen = () => {
   );
 };
 
-// ================== 管理者ログイン ==================
 const AdminLoginScreen = ({onLogin})=>{
   const [pw,setPw] = React.useState('');
   const navigate = useNavigate();
@@ -325,7 +409,6 @@ const AdminLoginScreen = ({onLogin})=>{
   );
 };
 
-// ================== VC発行 ==================
 const VcIssueScreen = () => {
   const [name,setName] = React.useState('');
   const [logoDataUrl,setLogoDataUrl] = React.useState('');
@@ -349,7 +432,7 @@ const VcIssueScreen = () => {
 
   return (
     <div>
-      <h2>VC発行</h2>
+      <h2>VC発行（テンプレート作成）</h2>
       <div style={{marginBottom:8}}>
         <label>認定名：</label>
         <input value={name} onChange={e=>setName(e.target.value)} placeholder="例）読書認定10級" style={{width:260}}/>
@@ -369,28 +452,55 @@ const VcIssueScreen = () => {
   );
 };
 
-// ================== VC付与 ==================
 const VcAssignScreen = () => {
-  const [didList,setDidList] = React.useState(getAllDidsFromHistory());
+  const [didList,setDidList] = React.useState([]); // {email,did,method}
   const [templates,setTemplates] = React.useState(getVcTemplates());
   const [selectedDid,setSelectedDid] = React.useState('');
   const [selectedTplId,setSelectedTplId] = React.useState('');
   const [manualDid,setManualDid] = React.useState('');
+  const [loading, setLoading] = React.useState(false);
 
-  const handleAssign = ()=>{
+  React.useEffect(()=>{
+    const fetchDids = async ()=>{
+      setLoading(true);
+      try {
+        const list = await getAllDidsFromHistoryMerged();
+        setDidList(list);
+      } catch(e){
+        console.error('failed to load dids', e);
+        setDidList(getAllDidsFromHistoryLocal());
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDids();
+  },[]);
+
+  const handleAssign = async ()=>{
     if(!selectedDid || !selectedTplId){ alert('DID と テンプレートを選択してください'); return; }
     const tpl = templates.find(t=>t.id===selectedTplId);
     if(!tpl){ alert('テンプレートが見つかりません'); return; }
     const vc = { id:`vc-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, type:tpl.type||['VerifiableCredential','OrganizationAward'], issuer:tpl.issuer||ADMIN_ISSUER_DID, holder:selectedDid, issuanceDate:new Date().toISOString(), credentialSubject:{id:selectedDid,title:tpl.name,logo:tpl.logo||null,awardedBy:'CAICA'} };
-    appendVcForDid(selectedDid,vc);
-    alert('VCを付与しました');
+    try {
+      await appendVcForDidMerged(selectedDid, vc);
+      alert('VCを付与しました（Firestore とローカルに保存）');
+    } catch (e) {
+      console.warn('appendVcForDidMerged error', e);
+      alert('VC付与（ローカルに保存）は完了しました。ただし Firestore への反映に失敗しました。');
+    }
   };
 
-  const addManualDid = ()=>{ if(!manualDid) return; if(!didList.some(x=>x.did===manualDid)) setDidList([{email:'(手入力)',did:manualDid},...didList]); setSelectedDid(manualDid); setManualDid(''); };
+  const addManualDid = ()=>{ 
+    if(!manualDid) return; 
+    if(!didList.some(x=>x.did===manualDid)) setDidList([{email:'(手入力)',did:manualDid},...didList]); 
+    setSelectedDid(manualDid); 
+    setManualDid(''); 
+  };
 
   return (
     <div>
       <h2>VC付与</h2>
+      {loading && <p>読み込み中...</p>}
       <div style={{marginBottom:10}}>
         <label>対象DID：</label>
         <select value={selectedDid} onChange={e=>setSelectedDid(e.target.value)} style={{width:420}}>
