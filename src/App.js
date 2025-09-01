@@ -48,7 +48,9 @@ function appendVcForDidLocal(did, vc) {
 function saveDidHistoryLocal(email, issued) {
   const historyByEmail = JSON.parse(localStorage.getItem('didHistoryByEmail') || '{}');
   if (!historyByEmail[email]) historyByEmail[email] = [];
-  historyByEmail[email].push(issued);
+  // normalize did in local history
+  const toSave = { ...issued, did: (issued && issued.did) ? issued.did.toString().trim() : issued.did };
+  historyByEmail[email].push(toSave);
   localStorage.setItem('didHistoryByEmail', JSON.stringify(historyByEmail));
 }
 function getDidHistoryByEmailLocal(email) {
@@ -60,7 +62,7 @@ function getAllDidsFromHistoryLocal() {
   const list = [];
   Object.entries(historyByEmail).forEach(([email, arr]) => {
     (arr || []).forEach((issued) => {
-      list.push({ email, did: issued.did, method: issued.method });
+      list.push({ email, did: (issued && issued.did) ? issued.did.toString().trim() : issued.did, method: issued.method });
     });
   });
   const seen = new Set();
@@ -130,13 +132,15 @@ async function getAllDidsFromHistoryMerged() {
       // Cloud の didHistory は文字列配列を期待（cloud.js 側で整形）
       if (u.didHistory && Array.isArray(u.didHistory)) {
         (u.didHistory || []).forEach((issued) => {
-          const didVal = typeof issued === 'string' ? issued : (issued.did || '');
+          const didValRaw = typeof issued === 'string' ? issued : (issued.did || '');
+          const didVal = didValRaw ? didValRaw.toString().trim() : didValRaw;
           if (didVal) list.push({ email: u.email, did: didVal, method: '' });
         });
       }
       // u.did があれば追加
       if (u.did) {
-        const didVal = typeof u.did === 'string' ? u.did : (u.did.did || '');
+        const didRaw = typeof u.did === 'string' ? u.did : (u.did && u.did.did ? u.did.did : '');
+        const didVal = didRaw ? didRaw.toString().trim() : didRaw;
         if (didVal) list.push({ email: u.email, did: didVal, method: '' });
       }
     });
@@ -155,27 +159,32 @@ async function getAllDidsFromHistoryMerged() {
 // getVcsByDid: try cloud first, fallback to local
 async function getVcsByDidMerged(did) {
   try {
+    if (!did) return [];
+    const key = did.toString().trim();
     // cloudGetVcsByDid は配列を返す想定
-    const vcs = await cloudGetVcsByDid(did);
+    const vcs = await cloudGetVcsByDid(key);
     if (Array.isArray(vcs) && vcs.length > 0) return vcs;
     // cloud が空の配列を返す/存在しない場合は local を試す
-    const local = getVcsByDidLocal(did);
+    const local = getVcsByDidLocal(key);
     return local || [];
   } catch (e) {
     console.warn('getVcsByDidMerged: cloud fetch failed, falling back to local', e);
-    return getVcsByDidLocal(did);
+    return getVcsByDidLocal(did.toString().trim());
   }
 }
 
 // appendVcForDid: try cloud append; if fail, append local
 async function appendVcForDidMerged(did, vc) {
   try {
-    await cloudAppendVcForDid(did, vc);
+    if (!did) throw new Error('did required');
+    const key = did.toString().trim();
+    await cloudAppendVcForDid(key, vc);
     // ローカルにも保存（オフライン時の表示用）
-    appendVcForDidLocal(did, vc);
+    appendVcForDidLocal(key, vc);
   } catch (e) {
     console.warn('appendVcForDidMerged: cloud append failed, appending to local only', e);
-    appendVcForDidLocal(did, vc);
+    const key = did ? did.toString().trim() : did;
+    appendVcForDidLocal(key, vc);
     throw e; // 呼び出し側で通知したいので再スロー
   }
 }
@@ -200,7 +209,9 @@ const IdIssueScreen = () => {
     if(error||!email){ alert('正しいメールアドレスを入力してください'); return; }
     try{
       const data = method==='key'? issueDidKey():issueDidEthr();
-      const issued = {...data,email};
+      // normalize did string immediately
+      const normalizedDid = data && data.did ? data.did.toString().trim() : data.did;
+      const issued = {...data, did: normalizedDid, email};
 
       // --- ローカルに履歴保存（既存の動作維持） ---
       try { saveDidHistoryLocal(email, issued); } catch(e){ console.warn('local saveDidHistory failed', e); }
@@ -215,7 +226,7 @@ const IdIssueScreen = () => {
         console.warn('cloud saveDid/saveDidHistory failed', e);
       }
 
-      // lastContext 更新
+      // lastContext 更新 (store trimmed did)
       setLastContext({email,did:issued.did});
 
       navigate('/display-id',{state:{issued}});
@@ -245,13 +256,13 @@ const IdIssueScreen = () => {
 const IdDisplayScreen = () => {
   const location = useLocation();
   const issued = location.state?.issued;
-  const [did,setDid] = React.useState(issued?.did||'');
+  const [did,setDid] = React.useState(issued?.did ? issued.did.toString().trim() : '');
   const [doc,setDoc] = React.useState(null);
   const [err,setErr] = React.useState(null);
 
   React.useEffect(()=>{
     if(issued?.email){
-      setLastContext({email:issued.email,did:issued.did});
+      setLastContext({email:issued.email,did:issued.did ? issued.did.toString().trim() : issued.did});
       // mark that this DID was recently set by ID画面 (transient flag)
       if (issued.did) sessionStorage.setItem('vcContextValid', 'true');
     }
@@ -261,7 +272,7 @@ const IdDisplayScreen = () => {
   React.useEffect(()=>{
     if(did){
       const ctx = getLastContext();
-      setLastContext({email:ctx.email || '', did});
+      setLastContext({email:ctx.email || '', did: did.toString().trim()});
       sessionStorage.setItem('vcContextValid', 'true'); // allow next VC view to use this DID
     }
   },[did]);
@@ -269,12 +280,13 @@ const IdDisplayScreen = () => {
   const handleResolve = async()=>{
     try{
       setErr(null);
-      const d = await universalResolve(did.trim());
+      const trimmed = did ? did.toString().trim() : did;
+      const d = await universalResolve(trimmed);
       setDoc(d);
       const ctx = getLastContext();
-      setLastContext({email:ctx.email,did});
+      setLastContext({email:ctx.email,did:trimmed});
       // ensure transient flag is set (so VC display can use it)
-      if (did) sessionStorage.setItem('vcContextValid', 'true');
+      if (trimmed) sessionStorage.setItem('vcContextValid', 'true');
     }catch(e){ setDoc(null); setErr(e.message || e); }
   };
 
@@ -302,11 +314,11 @@ const VcDisplayScreen = () => {
   // - else if sessionStorage.vcContextValid === 'true' => use lastContext.did (and then consume flag)
   // - else => do NOT use lastContext, and show message telling user to input DID in ID表示画面
   const [currentDid, setCurrentDid] = React.useState(() => {
-    if (inputDid) return inputDid;
+    if (inputDid) return inputDid ? inputDid.toString().trim() : inputDid;
     try {
       if (sessionStorage.getItem('vcContextValid') === 'true') {
         const lc = getLastContext();
-        return lc.did || '';
+        return lc.did ? lc.did.toString().trim() : '';
       }
     } catch (e) {
       // ignore
@@ -331,8 +343,8 @@ const VcDisplayScreen = () => {
       setErr(null);
       try {
         // Use merged helper which tries cloud then local
-        const vcs = await getVcsByDidMerged(currentDid);
-        setAllVcs((vcs || []).map(vc => ({ did: currentDid, vc })));
+        const vcs = await getVcsByDidMerged(currentDid.toString().trim());
+        setAllVcs((vcs || []).map(vc => ({ did: currentDid.toString().trim(), vc })));
       } catch (e) {
         console.error('getVcsByDid error', e);
         setErr('VC取得に失敗しました');
@@ -429,7 +441,7 @@ const VcIssueScreen = () => {
 
   const handleCreate = ()=>{
     if(!name){ alert('認定名を入力してください'); return; }
-    const tpl = { id:`vctpl-${Date.now()}`, issuer:ADMIN_ISSUER_DID, name, logo:logoDataUrl, createdAt:new Date().toISOString(), type:['VerifiableCredential','OrganizationAward']};
+    const tpl = { id:`vctpl-${Date.now()}`, issuer:ADMIN_ISSUER_DID, name: name.toString().trim(), logo:logoDataUrl, createdAt:new Date().toISOString(), type:['VerifiableCredential','OrganizationAward']};
     saveVcTemplate(tpl);
     setTemplates(getVcTemplates());
     setName(''); setLogoDataUrl('');
@@ -489,9 +501,10 @@ const VcAssignScreen = () => {
     if(!selectedDid || !selectedTplId){ alert('DID と テンプレートを選択してください'); return; }
     const tpl = templates.find(t=>t.id===selectedTplId);
     if(!tpl){ alert('テンプレートが見つかりません'); return; }
-    const vc = { id:`vc-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, type:tpl.type||['VerifiableCredential','OrganizationAward'], issuer:tpl.issuer||ADMIN_ISSUER_DID, holder:selectedDid, issuanceDate:new Date().toISOString(), credentialSubject:{id:selectedDid,title:tpl.name,logo:tpl.logo||null,awardedBy:'CAICA'} };
+    const targetDid = selectedDid ? selectedDid.toString().trim() : selectedDid;
+    const vc = { id:`vc-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, type:tpl.type||['VerifiableCredential','OrganizationAward'], issuer:tpl.issuer||ADMIN_ISSUER_DID, holder:targetDid, issuanceDate:new Date().toISOString(), credentialSubject:{id:targetDid,title:tpl.name,logo:tpl.logo||null,awardedBy:'CAICA'} };
     try {
-      await appendVcForDidMerged(selectedDid, vc);
+      await appendVcForDidMerged(targetDid, vc);
       alert('VCを付与しました（Firestore とローカルに保存）');
     } catch (e) {
       console.warn('appendVcForDidMerged error', e);
@@ -500,10 +513,11 @@ const VcAssignScreen = () => {
   };
 
   const addManualDid = ()=>{ 
-    if(!manualDid) return; 
-    if(!didList.some(x=>x.did===manualDid)) setDidList([{email:'(手入力)',did:manualDid},...didList]); 
-    setSelectedDid(manualDid); 
-    setManualDid(''); 
+    if(!manualDid) return;
+    const trimmed = manualDid.toString().trim();
+    if(!didList.some(x=>x.did===trimmed)) setDidList([{email:'(手入力)',did:trimmed},...didList]);
+    setSelectedDid(trimmed);
+    setManualDid('');
   };
 
   return (
@@ -512,7 +526,7 @@ const VcAssignScreen = () => {
       {loading && <p>読み込み中...</p>}
       <div style={{marginBottom:10}}>
         <label>対象DID：</label>
-        <select value={selectedDid} onChange={e=>setSelectedDid(e.target.value)} style={{width:420}}>
+        <select value={selectedDid} onChange={e=>setSelectedDid(e.target.value ? e.target.value.toString().trim() : e.target.value)} style={{width:420}}>
           <option value="">選択してください</option>
           {didList.map(x=><option key={x.did} value={x.did}>{x.email?`${x.email} — `:''}{x.did}</option>)}
         </select>

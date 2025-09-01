@@ -5,8 +5,7 @@ import {
   setDoc,
   getDoc,
   collection,
-  getDocs,
-  updateDoc
+  getDocs
 } from "firebase/firestore";
 import { app } from "../firebaseConfig";
 
@@ -33,8 +32,10 @@ export async function saveDid(userEmail, did) {
     if (!userEmail) throw new Error("userEmail required");
     if (!did) throw new Error("did required");
 
-    await setDoc(doc(db, "users", userEmail), { did }, { merge: true });
-    console.log("✅ saveDid:", userEmail, did);
+    const cleanDid = did.trim();
+
+    await setDoc(doc(db, "users", userEmail), { did: cleanDid }, { merge: true });
+    console.log("✅ saveDid:", userEmail, cleanDid);
   } catch (e) {
     console.error("❌ saveDid error:", e);
     throw e;
@@ -47,20 +48,21 @@ export async function saveDidHistory(userEmail, did) {
     if (!userEmail) throw new Error("userEmail required");
     if (!did) throw new Error("did required");
 
+    const cleanDid = did.trim();
     const userRef = doc(db, "users", userEmail);
     const snap = await getDoc(userRef);
 
     let history = [];
     if (snap.exists() && Array.isArray(snap.data().didHistory)) {
-      history = snap.data().didHistory;
+      history = snap.data().didHistory.map(d => d.trim());
     }
 
-    if (!history.includes(did)) {
-      history.push(did);
+    if (!history.includes(cleanDid)) {
+      history.push(cleanDid);
       await setDoc(userRef, { didHistory: history }, { merge: true });
-      console.log("✅ saveDidHistory appended:", userEmail, did);
+      console.log("✅ saveDidHistory appended:", userEmail, cleanDid);
     } else {
-      console.log("ℹ️ did already in history:", did);
+      console.log("ℹ️ did already in history:", cleanDid);
     }
   } catch (e) {
     console.error("❌ saveDidHistory error:", e);
@@ -86,13 +88,14 @@ export async function getAllDidsFromHistory(userEmail) {
     const snap = await getDoc(doc(db, "users", userEmail));
     if (snap.exists()) {
       const data = snap.data();
-      if (Array.isArray(data.didHistory)) return data.didHistory;
+      if (Array.isArray(data.didHistory)) return data.didHistory.map(d => d.trim());
 
       // 互換性対応：過去に別形式で保存されていた場合
       if (Array.isArray(data.didHistoryObjects)) {
         return data.didHistoryObjects
           .map(x => (typeof x === "string" ? x : (x.did || "")))
-          .filter(Boolean);
+          .filter(Boolean)
+          .map(d => d.trim());
       }
     }
     return [];
@@ -108,7 +111,8 @@ export async function getAllDidsFromHistory(userEmail) {
 export async function getVcsByDid(did) {
   try {
     if (!did) return [];
-    const ref = doc(db, "vcs", did);
+    const cleanDid = did.trim();
+    const ref = doc(db, "vcs", cleanDid);
     const snap = await getDoc(ref);
     if (snap.exists()) {
       const data = snap.data();
@@ -128,8 +132,9 @@ export async function saveVC(did, vcArray) {
     if (!did) throw new Error("did required");
     if (!Array.isArray(vcArray)) throw new Error("vcArray must be array");
 
-    await setDoc(doc(db, "vcs", did), { vc: vcArray }, { merge: true });
-    console.log("✅ saveVC for did:", did);
+    const cleanDid = did.trim();
+    await setDoc(doc(db, "vcs", cleanDid), { vc: vcArray }, { merge: true });
+    console.log("✅ saveVC for did:", cleanDid);
   } catch (e) {
     console.error("❌ saveVC error:", e);
     throw e;
@@ -142,12 +147,13 @@ export async function appendVcForDid(did, newVc) {
     if (!did) throw new Error("did required");
     if (!newVc) throw new Error("newVc required");
 
-    const ref = doc(db, "vcs", did);
+    const cleanDid = did.trim();
+    const ref = doc(db, "vcs", cleanDid);
     const snap = await getDoc(ref);
 
     if (!snap.exists()) {
       await setDoc(ref, { vc: [newVc] }, { merge: true });
-      console.log("✅ appendVcForDid: created new vcs doc for", did);
+      console.log("✅ appendVcForDid: created new vcs doc for", cleanDid);
       return;
     }
 
@@ -160,7 +166,7 @@ export async function appendVcForDid(did, newVc) {
 
     vcs.push(newVc);
     await setDoc(ref, { vc: vcs }, { merge: true });
-    console.log("✅ appendVcForDid: appended VC for", did);
+    console.log("✅ appendVcForDid: appended VC for", cleanDid);
   } catch (e) {
     console.error("❌ appendVcForDid error:", e);
     throw e;
