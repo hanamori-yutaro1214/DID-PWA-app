@@ -349,7 +349,7 @@ const VcIssueScreen = () => {
 
   return (
     <div>
-      <h2>VC発行（テンプレート作成）</h2>
+      <h2>VC発行</h2>
       <div style={{marginBottom:8}}>
         <label>認定名：</label>
         <input value={name} onChange={e=>setName(e.target.value)} placeholder="例）読書認定10級" style={{width:260}}/>

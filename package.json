@@ -10,10 +10,13 @@
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
     "@transmute/ed25519-key-pair": "^0.7.0-unstable.82",
+    "cors": "^2.8.5",
     "did-resolver": "^4.1.0",
     "did-web": "^0.1.0",
     "ethers": "^6.15.0",
     "ethr-did-resolver": "^11.0.5",
+    "express": "^5.1.0",
+    "firebase": "^12.2.1",
     "multiformats": "^13.4.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
@@ -64,5 +67,20 @@
   },
   "devDependencies": {
     "gh-pages": "^6.3.0"
-  }
+  },
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hanamori-yutaro1214/DID-PWA-app.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/hanamori-yutaro1214/DID-PWA-app/issues"
+  },
+  "description": ""
 }
