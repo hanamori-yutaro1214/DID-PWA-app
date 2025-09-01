@@ -6,33 +6,33 @@ import {
   getDoc,
   collection,
   getDocs,
-  updateDoc,
-  writeBatch
+  updateDoc
 } from "firebase/firestore";
 import { app } from "../firebaseConfig";
 
 const db = getFirestore(app);
 
 /*
-  データ構造方針（ローカルストレージ版に合わせる）
+  データ構造方針
   - users/<email>:
       {
         did: "最新 did string",
-        didHistory: ["did:key:xxx", "did:key:yyy"],   // ← 文字列配列（重要）
-        // optional: didDocuments: { "<did>": { ...didDocument... } }
+        didHistory: ["did:key:xxx", "did:key:yyy"]   // ← 文字列配列
       }
   - vcs/<did>:
       {
-        vc: [ { ...vc1... }, { ...vc2... } ]  // DID に紐づく VC 配列
+        vc: [ { ...vc1... }, { ...vc2... } ]        // DID に紐づく VC 配列
       }
 */
 
 // ---------- DID 関連 ----------
 
-// 最新 DID を保存（上書きで問題なし）
+// 最新 DID を保存
 export async function saveDid(userEmail, did) {
   try {
     if (!userEmail) throw new Error("userEmail required");
+    if (!did) throw new Error("did required");
+
     await setDoc(doc(db, "users", userEmail), { did }, { merge: true });
     console.log("✅ saveDid:", userEmail, did);
   } catch (e) {
@@ -41,7 +41,7 @@ export async function saveDid(userEmail, did) {
   }
 }
 
-// DID 履歴を文字列配列として保存（重複を避けつつ append）
+// DID 履歴を保存（重複を避けつつ文字列配列に追加）
 export async function saveDidHistory(userEmail, did) {
   try {
     if (!userEmail) throw new Error("userEmail required");
@@ -49,15 +49,14 @@ export async function saveDidHistory(userEmail, did) {
 
     const userRef = doc(db, "users", userEmail);
     const snap = await getDoc(userRef);
+
     let history = [];
     if (snap.exists() && Array.isArray(snap.data().didHistory)) {
       history = snap.data().didHistory;
     }
 
-    // 重複チェック（同一 DID を何度も push しない）
     if (!history.includes(did)) {
       history.push(did);
-      // merge: true を使って既存フィールドは壊さない
       await setDoc(userRef, { didHistory: history }, { merge: true });
       console.log("✅ saveDidHistory appended:", userEmail, did);
     } else {
@@ -69,7 +68,7 @@ export async function saveDidHistory(userEmail, did) {
   }
 }
 
-// （管理者など向け）全ユーザーを取得
+// 全ユーザー取得（管理用）
 export async function getAllUsers() {
   try {
     const q = await getDocs(collection(db, "users"));
@@ -80,7 +79,7 @@ export async function getAllUsers() {
   }
 }
 
-// 特定ユーザーの didHistory を取得（文字列配列を返す）
+// 特定ユーザーの DID 履歴取得
 export async function getAllDidsFromHistory(userEmail) {
   try {
     if (!userEmail) return [];
@@ -88,9 +87,12 @@ export async function getAllDidsFromHistory(userEmail) {
     if (snap.exists()) {
       const data = snap.data();
       if (Array.isArray(data.didHistory)) return data.didHistory;
-      // 互換性: もし過去にオブジェクト配列で保存されてしまっている場合は変換を試みる
+
+      // 互換性対応：過去に別形式で保存されていた場合
       if (Array.isArray(data.didHistoryObjects)) {
-        return data.didHistoryObjects.map(x => (typeof x === "string" ? x : (x.did || ""))).filter(Boolean);
+        return data.didHistoryObjects
+          .map(x => (typeof x === "string" ? x : (x.did || "")))
+          .filter(Boolean);
       }
     }
     return [];
@@ -102,7 +104,7 @@ export async function getAllDidsFromHistory(userEmail) {
 
 // ---------- VC 関連 ----------
 
-// DID に紐づく VC 配列を取得（配列を返す）
+// DID に紐づく VC 配列を取得
 export async function getVcsByDid(did) {
   try {
     if (!did) return [];
@@ -111,7 +113,6 @@ export async function getVcsByDid(did) {
     if (snap.exists()) {
       const data = snap.data();
       if (Array.isArray(data.vc)) return data.vc;
-      // 互換性：もし vc が単一オブジェクトで保存されていたら配列にする
       if (data.vc && typeof data.vc === "object") return [data.vc];
     }
     return [];
@@ -121,11 +122,12 @@ export async function getVcsByDid(did) {
   }
 }
 
-// VC を上書き保存（vc 配列全体をセット）
+// VC を保存（配列ごと上書き）
 export async function saveVC(did, vcArray) {
   try {
     if (!did) throw new Error("did required");
     if (!Array.isArray(vcArray)) throw new Error("vcArray must be array");
+
     await setDoc(doc(db, "vcs", did), { vc: vcArray }, { merge: true });
     console.log("✅ saveVC for did:", did);
   } catch (e) {
@@ -134,7 +136,7 @@ export async function saveVC(did, vcArray) {
   }
 }
 
-// VC を追加（既存配列に push）。存在しなければ新規ドキュメントを作成。
+// VC を追加保存（既存配列に push）
 export async function appendVcForDid(did, newVc) {
   try {
     if (!did) throw new Error("did required");
@@ -142,22 +144,22 @@ export async function appendVcForDid(did, newVc) {
 
     const ref = doc(db, "vcs", did);
     const snap = await getDoc(ref);
+
     if (!snap.exists()) {
-      // 新規作成（vc を配列で保存）
       await setDoc(ref, { vc: [newVc] }, { merge: true });
       console.log("✅ appendVcForDid: created new vcs doc for", did);
       return;
     }
 
-    const existing = snap.data().vc;
-    if (Array.isArray(existing)) {
-      existing.push(newVc);
-      await updateDoc(ref, { vc: existing });
-    } else {
-      // 既存が未配列の場合は配列に変換して保存
-      const arr = existing ? [existing, newVc] : [newVc];
-      await setDoc(ref, { vc: arr }, { merge: true });
+    let vcs = [];
+    if (Array.isArray(snap.data().vc)) {
+      vcs = snap.data().vc;
+    } else if (snap.data().vc) {
+      vcs = [snap.data().vc];
     }
+
+    vcs.push(newVc);
+    await setDoc(ref, { vc: vcs }, { merge: true });
     console.log("✅ appendVcForDid: appended VC for", did);
   } catch (e) {
     console.error("❌ appendVcForDid error:", e);
