@@ -9,5 +9,5 @@ export async function universalResolve(did) {
   if (did.startsWith('did:ethr:')) {
     return await resolveDidEthr(did);
   }
-  throw new Error('未対応のDIDです。');
+  throw new Error('did:keyを入力してください。');
 }
