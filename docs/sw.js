@@ -2,7 +2,7 @@
 importScripts('https://storage.googleapis.com/workbox-cdn/releases/6.5.4/workbox-sw.js');
 
 if (workbox) {
-  const SW_VERSION = 'v1.0.35'; // ビルドごとに更新する
+  const SW_VERSION = 'v1.0.36'; // ビルドごとに更新する
 
   // クライアント制御と skipWaiting
   workbox.core.clientsClaim();

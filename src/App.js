@@ -21,13 +21,14 @@ import {
   saveDidHistory as cloudSaveDidHistory,
   getAllUsers as cloudGetAllUsers,
   getVcsByDid as cloudGetVcsByDid,
-  appendVcForDid as cloudAppendVcForDid
+  appendVcForDid as cloudAppendVcForDid,
+  getAllVcsDids 
 } from './services/cloud';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // ================== 設定（簡易管理者） ==================
-const ADMIN_PASSWORD = 'caica50039';
+const ADMIN_PASSWORD = 'caica1214';
 const ADMIN_ISSUER_DID = 'CAICAテクノロジーズ';
 
 // ================== LocalStorage ユーティリティ（既存を残す） ==================
@@ -562,7 +563,7 @@ const VcIssueScreen = () => {
 
 // ================== VC付与 ==================
 const VcAssignScreen = () => {
-  const [didList,setDidList] = React.useState([]); // {email,did,method}
+  const [didList,setDidList] = React.useState([]); // {did}
   const [templates,setTemplates] = React.useState(getVcTemplates());
   const [selectedDid,setSelectedDid] = React.useState('');
   const [selectedTplId,setSelectedTplId] = React.useState('');
@@ -573,11 +574,12 @@ const VcAssignScreen = () => {
     const fetchDids = async ()=>{
       setLoading(true);
       try {
-        const list = await getAllDidsFromHistoryMerged();
-        setDidList(list);
+        // Firestore の vcs コレクションに存在する DID 一覧を取得
+        const list = await getAllVcsDids();
+        setDidList(list.map(did => ({ did })));
       } catch(e){
-        console.error('failed to load dids', e);
-        setDidList(getAllDidsFromHistoryLocal());
+        console.error('failed to load dids from vcs', e);
+        setDidList([]); // Firestoreから取れない場合は空
       } finally {
         setLoading(false);
       }
@@ -590,7 +592,19 @@ const VcAssignScreen = () => {
     const tpl = templates.find(t=>t.id===selectedTplId);
     if(!tpl){ alert('テンプレートが見つかりません'); return; }
     const targetDid = selectedDid ? selectedDid.toString().trim() : selectedDid;
-    const vc = { id:`vc-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, type:tpl.type||['VerifiableCredential','OrganizationAward'], issuer:tpl.issuer||ADMIN_ISSUER_DID, holder:targetDid, issuanceDate:new Date().toISOString(), credentialSubject:{id:targetDid,title:tpl.name,logo:tpl.logo||null,awardedBy:'CAICA'} };
+    const vc = {
+      id:`vc-${Date.now()}-${Math.random().toString(36).slice(2,6)}`,
+      type:tpl.type||['VerifiableCredential','OrganizationAward'],
+      issuer:tpl.issuer||ADMIN_ISSUER_DID,
+      holder:targetDid,
+      issuanceDate:new Date().toISOString(),
+      credentialSubject:{
+        id:targetDid,
+        title:tpl.name,
+        logo:tpl.logo||null,
+        awardedBy:'CAICA'
+      }
+    };
     try {
       await appendVcForDidMerged(targetDid, vc);
       alert('VCを付与しました（Firestore とローカルに保存）');
@@ -603,7 +617,7 @@ const VcAssignScreen = () => {
   const addManualDid = ()=>{ 
     if(!manualDid) return;
     const trimmed = manualDid.toString().trim();
-    if(!didList.some(x=>x.did===trimmed)) setDidList([{email:'(手入力)',did:trimmed},...didList]);
+    if(!didList.some(x=>x.did===trimmed)) setDidList([{did:trimmed},...didList]);
     setSelectedDid(trimmed);
     setManualDid('');
   };
@@ -614,9 +628,13 @@ const VcAssignScreen = () => {
       {loading && <p>読み込み中...</p>}
       <div style={{marginBottom:10}}>
         <label>対象DID：</label>
-        <select value={selectedDid} onChange={e=>setSelectedDid(e.target.value ? e.target.value.toString().trim() : e.target.value)} style={{width:420}}>
+        <select
+          value={selectedDid}
+          onChange={e=>setSelectedDid(e.target.value ? e.target.value.toString().trim() : e.target.value)}
+          style={{width:420}}
+        >
           <option value="">選択してください</option>
-          {didList.map(x=><option key={x.did} value={x.did}>{x.email?`${x.email} — `:''}{x.did}</option>)}
+          {didList.map(x=><option key={x.did} value={x.did}>{x.did}</option>)}
         </select>
       </div>
       <div style={{marginBottom:6}}>
@@ -636,6 +654,7 @@ const VcAssignScreen = () => {
     </div>
   );
 };
+
 
 // ================== 管理者専用ルートガード ==================
 const AdminRoute = ({ element })=> isAdmin()? element : <Navigate to="/admin-login" replace />;

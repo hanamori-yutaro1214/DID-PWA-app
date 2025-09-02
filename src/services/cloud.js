@@ -172,3 +172,16 @@ export async function appendVcForDid(did, newVc) {
     throw e;
   }
 }
+
+// ---------- VC DID一覧取得 ----------
+
+// vcsコレクションに存在する全DIDを返す
+export async function getAllVcsDids() {
+  try {
+    const q = await getDocs(collection(db, "vcs"));
+    return q.docs.map(doc => doc.id.trim()); // doc.id が = DID
+  } catch (e) {
+    console.error("❌ getAllVcsDids error:", e);
+    return [];
+  }
+}
