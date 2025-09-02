@@ -9,5 +9,5 @@ export async function universalResolve(did) {
   if (did.startsWith('did:ethr:')) {
     return await resolveDidEthr(did);
   }
-  throw new Error('did:keyを入力してください。');
+  throw new Error('正しいdid:keyを入力してください。');
 }

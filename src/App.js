@@ -357,7 +357,7 @@ const VcDisplayScreen = () => {
   }, [currentDid, inputDid]);
 
   if (!currentDid) {
-    return <p>VCは存在しません。ID表示画面で did:key を入力してから VC 表示してください。</p>;
+    return <p>VCは存在しません。DID表示画面で did:key を入力してから VC 表示してください。</p>;
   }
 
   return (
