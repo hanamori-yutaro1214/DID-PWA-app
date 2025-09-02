@@ -27,7 +27,7 @@ import {
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // ================== 設定（簡易管理者） ==================
-const ADMIN_PASSWORD = 'caica1214';
+const ADMIN_PASSWORD = 'caica50039';
 const ADMIN_ISSUER_DID = 'CAICAテクノロジーズ';
 
 // ================== LocalStorage ユーティリティ（既存を残す） ==================
