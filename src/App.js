@@ -563,38 +563,21 @@ const VcIssueScreen = () => {
 
 // ================== VC付与 ==================
 const VcAssignScreen = () => {
-  const [didList, setDidList] = React.useState([]); // {email, did}
-  const [templates, setTemplates] = React.useState(getVcTemplates());
-  const [selectedDid, setSelectedDid] = React.useState('');
-  const [selectedTplId, setSelectedTplId] = React.useState('');
-  const [manualDid, setManualDid] = React.useState('');
+  const [didList,setDidList] = React.useState([]); // {did}
+  const [templates,setTemplates] = React.useState(getVcTemplates());
+  const [selectedDid,setSelectedDid] = React.useState('');
+  const [selectedTplId,setSelectedTplId] = React.useState('');
+  const [manualDid,setManualDid] = React.useState('');
   const [loading, setLoading] = React.useState(false);
 
-  React.useEffect(() => {
-    const fetchDids = async () => {
+  React.useEffect(()=>{
+    const fetchDids = async ()=>{
       setLoading(true);
       try {
         // Firestore の vcs コレクションに存在する DID 一覧を取得
-        const vcsDids = await getAllVcsDids(); // ["did:key:xxx", ...]
-
-        // 全ユーザー情報を取得
-        const users = await cloudGetAllUsers();
-
-        // email と DID の対応リストを作成（vcs に存在するものだけ）
-        let list = [];
-        users.forEach(u => {
-          if (Array.isArray(u.didHistory)) {
-            u.didHistory.forEach(did => {
-              const trimmed = did.trim();
-              if (vcsDids.includes(trimmed)) {
-                list.push({ email: u.email, did: trimmed });
-              }
-            });
-          }
-        });
-
-        setDidList(list);
-      } catch (e) {
+        const list = await getAllVcsDids();
+        setDidList(list.map(did => ({ did })));
+      } catch(e){
         console.error('failed to load dids from vcs', e);
         setDidList([]); // Firestoreから取れない場合は空
       } finally {
@@ -602,30 +585,24 @@ const VcAssignScreen = () => {
       }
     };
     fetchDids();
-  }, []);
+  },[]);
 
-  const handleAssign = async () => {
-    if (!selectedDid || !selectedTplId) {
-      alert('DID と テンプレートを選択してください');
-      return;
-    }
-    const tpl = templates.find(t => t.id === selectedTplId);
-    if (!tpl) {
-      alert('テンプレートが見つかりません');
-      return;
-    }
+  const handleAssign = async ()=>{
+    if(!selectedDid || !selectedTplId){ alert('DID と テンプレートを選択してください'); return; }
+    const tpl = templates.find(t=>t.id===selectedTplId);
+    if(!tpl){ alert('テンプレートが見つかりません'); return; }
     const targetDid = selectedDid ? selectedDid.toString().trim() : selectedDid;
     const vc = {
-      id: `vc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      type: tpl.type || ['VerifiableCredential', 'OrganizationAward'],
-      issuer: tpl.issuer || ADMIN_ISSUER_DID,
-      holder: targetDid,
-      issuanceDate: new Date().toISOString(),
-      credentialSubject: {
-        id: targetDid,
-        title: tpl.name,
-        logo: tpl.logo || null,
-        awardedBy: 'CAICA'
+      id:`vc-${Date.now()}-${Math.random().toString(36).slice(2,6)}`,
+      type:tpl.type||['VerifiableCredential','OrganizationAward'],
+      issuer:tpl.issuer||ADMIN_ISSUER_DID,
+      holder:targetDid,
+      issuanceDate:new Date().toISOString(),
+      credentialSubject:{
+        id:targetDid,
+        title:tpl.name,
+        logo:tpl.logo||null,
+        awardedBy:'CAICA'
       }
     };
     try {
@@ -637,13 +614,10 @@ const VcAssignScreen = () => {
     }
   };
 
-  const addManualDid = () => {
-    if (!manualDid) return;
+  const addManualDid = ()=>{ 
+    if(!manualDid) return;
     const trimmed = manualDid.toString().trim();
-    if (!didList.some(x => x.did === trimmed)) {
-      // 手入力は email 不明なので DID のみ
-      setDidList([{ email: '(manual)', did: trimmed }, ...didList]);
-    }
+    if(!didList.some(x=>x.did===trimmed)) setDidList([{did:trimmed},...didList]);
     setSelectedDid(trimmed);
     setManualDid('');
   };
@@ -652,64 +626,34 @@ const VcAssignScreen = () => {
     <div>
       <h2>VC付与</h2>
       {loading && <p>読み込み中...</p>}
-      <div style={{ marginBottom: 10 }}>
+      <div style={{marginBottom:10}}>
         <label>対象DID：</label>
         <select
           value={selectedDid}
-          onChange={e =>
-            setSelectedDid(
-              e.target.value ? e.target.value.toString().trim() : e.target.value
-            )
-          }
-          style={{ width: 420 }}
+          onChange={e=>setSelectedDid(e.target.value ? e.target.value.toString().trim() : e.target.value)}
+          style={{width:420}}
         >
           <option value="">選択してください</option>
-          {didList.map(x => (
-            <option key={x.did} value={x.did}>
-              {x.email} — {x.did}
-            </option>
-          ))}
+          {didList.map(x=><option key={x.did} value={x.did}>{x.did}</option>)}
         </select>
       </div>
-      <div style={{ marginBottom: 6 }}>
+      <div style={{marginBottom:6}}>
         <small>※ 履歴に無い場合は手入力：</small>
-        <input
-          value={manualDid}
-          onChange={e => setManualDid(e.target.value)}
-          placeholder="did:key:..."
-          style={{ width: 320 }}
-        />
-        <button onClick={addManualDid} style={{ marginLeft: 8 }}>
-          追加
-        </button>
+        <input value={manualDid} onChange={e=>setManualDid(e.target.value)} placeholder="did:key:..." style={{width:320}}/>
+        <button onClick={addManualDid} style={{marginLeft:8}}>追加</button>
       </div>
-      <div style={{ margin: '16px 0' }}>
+      <div style={{margin:'16px 0'}}>
         <label>テンプレート：</label>
-        <select
-          value={selectedTplId}
-          onChange={e => setSelectedTplId(e.target.value)}
-          style={{ width: 420 }}
-        >
+        <select value={selectedTplId} onChange={e=>setSelectedTplId(e.target.value)} style={{width:420}}>
           <option value="">選択してください</option>
-          {templates.map(t => (
-            <option key={t.id} value={t.id}>
-              {t.name}（issuer: {t.issuer}）
-            </option>
-          ))}
+          {templates.map(t=><option key={t.id} value={t.id}>{t.name}（issuer: {t.issuer}）</option>)}
         </select>
-        {templates.length === 0 && (
-          <p style={{ color: 'red' }}>
-            テンプレートがありません。先に「VC発行（テンプレート作成）」で作成してください。
-          </p>
-        )}
+        {templates.length===0 && <p style={{color:'red'}}>テンプレートがありません。先に「VC発行（テンプレート作成）」で作成してください。</p>}
       </div>
-      <button onClick={handleAssign} disabled={!selectedDid || !selectedTplId}>
-        VC付与
-      </button>
+      <button onClick={handleAssign} disabled={!selectedDid||!selectedTplId}>VC付与</button>
     </div>
   );
 };
-
 
 
 // ================== 管理者専用ルートガード ==================
