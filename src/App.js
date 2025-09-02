@@ -109,6 +109,19 @@ function fileToDataUrl(file){
   });
 }
 
+// ====== 追加: 狭い画面幅を検知してレイアウトを切替えるフック ======
+function useNarrowLayout(breakpoint = 600) {
+  const [isNarrow, setIsNarrow] = React.useState(
+    typeof window !== 'undefined' ? window.innerWidth <= breakpoint : false
+  );
+  React.useEffect(() => {
+    const onResize = () => setIsNarrow(window.innerWidth <= breakpoint);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [breakpoint]);
+  return isNarrow;
+}
+
 // ================== DID表示折り返し ==================
 function BreakableDid({ did, chunkSize = 25 }) {
   if (!did) return null;
@@ -305,10 +318,13 @@ const IdDisplayScreen = () => {
   );
 };
 
+// ================== ここだけUIを最小修正：VC表示 ==================
 const VcDisplayScreen = () => {
   const location = useLocation();
   let { inputDid } = location.state || {};
   const ctx = getLastContext();
+  const isNarrow = useNarrowLayout(600); // スマホ幅で縦並びにする
+
   // Decision rule:
   // - If location.state.inputDid is provided => use it
   // - else if sessionStorage.vcContextValid === 'true' => use lastContext.did (and then consume flag)
@@ -373,19 +389,84 @@ const VcDisplayScreen = () => {
         const logo = subj.logo || null;
         let issuance = vc.issuanceDate || vc.issued || vc.issuance || null;
         let issuanceStr = issuance ? (isNaN(new Date(issuance)) ? issuance : new Date(issuance).toLocaleString()) : "不明";
+
+        // ---- レイアウトの最小変更：ここだけ ----
+        const cardStyle = {
+          border:'1px solid #ccc',
+          padding:'12px',
+          marginBottom:'16px',
+          borderRadius:8,
+          display:'flex',
+          gap:12,
+          alignItems:'flex-start',
+          flexDirection: isNarrow ? 'column' : 'row',
+          maxWidth:'100%',
+          boxSizing:'border-box',
+          overflow:'hidden'
+        };
+        const logoWrapStyle = isNarrow
+          ? { width:'100%' }
+          : { flex:'0 0 120px' };
+        const logoImgStyle = isNarrow
+          ? {
+              width:'100%',
+              maxWidth:200,
+              height:'auto',
+              objectFit:'contain',
+              border:'1px solid #eee',
+              padding:6,
+              background:'#fff',
+              borderRadius:6,
+            }
+          : {
+              maxWidth:120,
+              maxHeight:120,
+              objectFit:'contain',
+              border:'1px solid #eee',
+              padding:6,
+              background:'#fff',
+              borderRadius:6,
+            };
+        const noLogoBoxStyle = isNarrow
+          ? {
+              width:'100%',
+              display:'flex',
+              alignItems:'center',
+              justifyContent:'center',
+              background:'#f5f5f5',
+              height:120,
+              borderRadius:6
+            }
+          : {
+              flex:'0 0 120px',
+              display:'flex',
+              alignItems:'center',
+              justifyContent:'center',
+              background:'#f5f5f5',
+              height:120,
+              borderRadius:6
+            };
+        const bodyStyle = {
+          flex:1,
+          width:'100%',
+          minWidth:0,
+          wordBreak:'break-word',
+          overflowWrap:'anywhere'
+        };
+
         return (
-          <div key={idx} style={{border:'1px solid #ccc',padding:'12px',marginBottom:'16px',borderRadius:8,display:'flex',gap:12,alignItems:'flex-start'}}>
+          <div key={idx} style={cardStyle}>
             {logo ? (
-              <div style={{flex:'0 0 120px'}}>
-                <img src={logo} alt={`logo-${idx}`} style={{maxWidth:120,maxHeight:120,objectFit:'contain',border:'1px solid #eee',padding:6,background:'#fff'}}/>
+              <div style={logoWrapStyle}>
+                <img src={logo} alt={`logo-${idx}`} style={logoImgStyle}/>
               </div>
             ) : (
-              <div style={{flex:'0 0 120px',display:'flex',alignItems:'center',justifyContent:'center',background:'#f5f5f5',height:120,borderRadius:6}}>
+              <div style={noLogoBoxStyle}>
                 <small>ロゴなし</small>
               </div>
             )}
 
-            <div style={{flex:1}}>
+            <div style={bodyStyle}>
               <h3 style={{margin:'4px 0'}}>{title}</h3>
               <p style={{margin:'6px 0'}}><strong>発行者:</strong> {vc.issuer || '不明'}</p>
               <p style={{margin:'6px 0'}}><strong>発行日:</strong> {issuanceStr}</p>
@@ -395,7 +476,14 @@ const VcDisplayScreen = () => {
 
               <details style={{marginTop:8}}>
                 <summary>詳細データ（JSON）を表示</summary>
-                <pre style={{fontSize:'0.8em',background:'#f9f9f9',padding:8,overflowX:'auto'}}>{JSON.stringify(vc,null,2)}</pre>
+                <pre style={{
+                  fontSize:'0.8em',
+                  background:'#f9f9f9',
+                  padding:8,
+                  overflowX:'auto',
+                  maxWidth:'100%',
+                  boxSizing:'border-box'
+                }}>{JSON.stringify(vc,null,2)}</pre>
               </details>
             </div>
           </div>
